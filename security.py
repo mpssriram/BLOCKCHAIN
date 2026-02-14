@@ -13,7 +13,7 @@ class SecurityService:
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-    # 🔥 CHANGE HERE
+
     pwd_context = CryptContext(
         schemes=["pbkdf2_sha256"],
         deprecated="auto"
