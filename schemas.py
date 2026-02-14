@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import List
 from decimal import Decimal
@@ -34,3 +34,17 @@ class EmployeeResponse(BaseModel):
     transactions: List[TransactionResponse] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    role: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
