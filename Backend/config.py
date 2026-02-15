@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str  # e.g. mysql+pymysql://user:pass@localhost/dbname
     HELA_RPC_URL: Optional[str] = None
     CONTRACT_ADDRESS: Optional[str] = None
+    TAX_VAULT_ADDRESS: Optional[str] = None
     TAX_RATE: int = 10
 
 settings = Settings()

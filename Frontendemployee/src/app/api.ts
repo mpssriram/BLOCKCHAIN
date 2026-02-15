@@ -33,3 +33,7 @@ export async function getMyProfile() {
 export async function getMyTransactions() {
   return apiRequest("/api/me/transactions");
 }
+
+export async function getBlockchainConfig() {
+  return apiRequest("/api/blockchain/config");
+}

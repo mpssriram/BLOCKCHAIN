@@ -10,6 +10,7 @@ from models import User, Employee, Treasury, CompanySettings
 from security import SecurityService
 from auth import router as auth_router
 from api_routes import router as api_router
+from blockchain_routes import router as blockchain_router
 
 app = FastAPI()
 
@@ -30,6 +31,14 @@ app.add_middleware(
 @app.on_event("startup")
 def startup():
     db.create_tables()
+    # Add wallet_address to employees if missing (migration)
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE employees ADD COLUMN wallet_address VARCHAR(42)"))
+            conn.commit()
+    except Exception:
+        pass  # Column may already exist or unsupported DB
     session: Session = db.SessionLocal()
 
     # Seed test users (employee + employer)
@@ -84,6 +93,7 @@ def startup():
 # -----------------------
 app.include_router(auth_router, prefix="/api")
 app.include_router(api_router, prefix="/api")
+app.include_router(blockchain_router, prefix="/api")
 
 # -----------------------
 # Frontend paths

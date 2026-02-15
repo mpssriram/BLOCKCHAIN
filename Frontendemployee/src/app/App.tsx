@@ -5,7 +5,9 @@ import { TransactionGraph } from './components/TransactionGraph';
 import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
 import { YieldFeatures } from './components/YieldFeatures';
-import { getMyProfile, getMyTransactions } from './api';
+import { getMyProfile, getMyTransactions, getBlockchainConfig } from './api';
+import { loginAndConnectContract, isConnected, getConnectedAddress } from '../blockchain/web3Auth';
+import { ethers } from 'ethers';
 import { 
   Wallet, 
   TrendingUp, 
@@ -22,6 +24,10 @@ export default function App() {
   const [profile, setProfile] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [contractAddress, setContractAddress] = useState<string | null>(null);
+  const [claimableWei, setClaimableWei] = useState<string | null>(null);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -29,14 +35,66 @@ export default function App() {
       window.location.href = '/employee-login';
       return;
     }
-    Promise.all([getMyProfile(), getMyTransactions()])
-      .then(([p, t]) => {
+    Promise.all([getMyProfile(), getMyTransactions(), getBlockchainConfig()])
+      .then(([p, t, cfg]: [any, any, any]) => {
         setProfile(p);
         setTransactions(t || []);
+        if (cfg?.contract_address) setContractAddress(cfg.contract_address);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    if (isConnected()) {
+      getConnectedAddress().then((addr) => setWalletAddress(addr));
+    }
   }, []);
+
+  useEffect(() => {
+    if (walletAddress && contractAddress) {
+      loginAndConnectContract(contractAddress)
+        .then(({ contract }) => contract.claimableAmount(walletAddress))
+        .then((amt) => setClaimableWei(amt.toString()))
+        .catch(() => setClaimableWei(null));
+    }
+  }, [walletAddress, contractAddress]);
+
+  async function loadClaimable() {
+    if (!contractAddress || !walletAddress) return;
+    try {
+      const { contract } = await loginAndConnectContract(contractAddress);
+      const amount = await contract.claimableAmount(walletAddress);
+      setClaimableWei(amount.toString());
+    } catch {
+      setClaimableWei(null);
+    }
+  }
+
+  async function handleConnectWallet() {
+    if (!contractAddress) return;
+    try {
+      const { address, contract } = await loginAndConnectContract(contractAddress);
+      setWalletAddress(address);
+      const amount = await contract.claimableAmount(address);
+      setClaimableWei(amount.toString());
+    } catch (err: any) {
+      alert(err?.message || 'Failed to connect wallet');
+    }
+  }
+
+  async function handleWithdraw() {
+    if (!contractAddress || !walletAddress) return;
+    setWithdrawLoading(true);
+    try {
+      const { contract, signer } = await loginAndConnectContract(contractAddress);
+      const tx = await contract.withdraw();
+      await tx.wait();
+      setClaimableWei('0');
+    } catch (err: any) {
+      alert(err?.message || 'Withdraw failed');
+    } finally {
+      setWithdrawLoading(false);
+    }
+  }
 
   const totalEarned = profile?.total_earned ?? 0;
   const stats = {
@@ -108,6 +166,37 @@ export default function App() {
                 iconBg="bg-cyan-500"
               />
             </div>
+
+            {/* On-Chain Withdraw (Web3Auth + HeLa) */}
+            {contractAddress && (
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-indigo-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">On-Chain Earnings (HeLa Testnet)</h3>
+                {!walletAddress ? (
+                  <button
+                    onClick={handleConnectWallet}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    Connect Wallet (Web3Auth)
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600">
+                      Wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
+                    </p>
+                    <p className="text-lg font-semibold text-indigo-600">
+                      Claimable: {claimableWei ? `${ethers.formatEther(claimableWei)} HLUSD` : '0 HLUSD'}
+                    </p>
+                    <button
+                      onClick={handleWithdraw}
+                      disabled={withdrawLoading || !claimableWei || claimableWei === '0'}
+                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {withdrawLoading ? 'Withdrawing...' : 'Withdraw'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Conversion Amount Card */}
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-lg">

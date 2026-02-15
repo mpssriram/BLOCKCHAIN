@@ -22,6 +22,7 @@ from schemas import (
     EmployeeCreate,
     EmployeeResponse,
     EmployeeTaxUpdate,
+    EmployeeWalletUpdate,
     TransactionCreate,
     TransactionResponse,
     BonusCreate,
@@ -63,6 +64,7 @@ def list_employees(
             email=e.email,
             role=e.role,
             is_streaming=e.is_streaming or False,
+            wallet_address=e.wallet_address,
             use_custom_tax=e.use_custom_tax or False,
             custom_tax_rate=e.custom_tax_rate,
             transactions=[],
@@ -87,6 +89,7 @@ def create_employee(
             email=emp.email,
             role=emp.role,
             is_streaming=emp.is_streaming or False,
+            wallet_address=emp.wallet_address,
             use_custom_tax=emp.use_custom_tax or False,
             custom_tax_rate=emp.custom_tax_rate,
             transactions=[],
@@ -121,6 +124,7 @@ def get_employee(
         email=emp.email,
         role=emp.role,
         is_streaming=emp.is_streaming or False,
+        wallet_address=emp.wallet_address,
         use_custom_tax=emp.use_custom_tax or False,
         custom_tax_rate=emp.custom_tax_rate,
         transactions=transactions,
@@ -147,6 +151,23 @@ def get_employee_transactions(
         )
         for t in emp.transactions
     ]
+
+
+@router.put("/employees/{employee_id}/wallet")
+def update_employee_wallet(
+    employee_id: int,
+    data: EmployeeWalletUpdate,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    """Set employee's on-chain wallet address (for CorePayroll)."""
+    emp = EmployeeService.get_employee(session, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    emp.wallet_address = data.wallet_address
+    session.commit()
+    session.refresh(emp)
+    return {"message": "Wallet updated", "wallet_address": emp.wallet_address}
 
 
 @router.put("/employees/{employee_id}/tax")

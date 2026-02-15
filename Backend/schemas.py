@@ -72,6 +72,7 @@ class EmployeeResponse(BaseModel):
     role: str
 
     is_streaming: bool = False
+    wallet_address: Optional[str] = None
     use_custom_tax: bool = False
     custom_tax_rate: Optional[Decimal] = None
 
@@ -87,6 +88,10 @@ class EmployeeResponse(BaseModel):
 class EmployeeTaxUpdate(BaseModel):
     use_custom_tax: bool
     custom_tax_rate: Optional[Decimal] = None
+
+
+class EmployeeWalletUpdate(BaseModel):
+    wallet_address: str
 
 
 # =====================================================

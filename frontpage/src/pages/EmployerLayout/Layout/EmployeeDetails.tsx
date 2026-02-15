@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Play, PauseCircle } from "lucide-react";
-import { getEmployee, startStream, pauseStream, createTransaction } from "../../../app/api";
+import { getEmployee, startStream, pauseStream, createTransaction, getBlockchainConfig, updateEmployeeWallet } from "../../../app/api";
+import { loginAndConnectContract } from "../../../blockchain/web3Auth";
+import { ethers } from "ethers";
 
 export default function EmployeeDetails() {
   const { id } = useParams();
@@ -12,12 +14,16 @@ export default function EmployeeDetails() {
   const [salaryAmount, setSalaryAmount] = useState("");
   const [salaryDesc, setSalaryDesc] = useState("");
   const [payLoading, setPayLoading] = useState(false);
+  const [contractAddress, setContractAddress] = useState<string | null>(null);
+  const [onChainLoading, setOnChainLoading] = useState(false);
+  const [ratePerSecond, setRatePerSecond] = useState("");
 
   useEffect(() => {
     if (!id) return;
     getEmployee(Number(id))
       .then(setEmployee)
       .catch(() => setEmployee(null));
+    getBlockchainConfig().then((cfg: any) => cfg?.contract_address && setContractAddress(cfg.contract_address));
   }, [id]);
 
   const handleActivate = async () => {
@@ -43,6 +49,60 @@ export default function EmployeeDetails() {
       alert("Pause failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLinkWallet = async () => {
+    if (!id || !contractAddress) return;
+    setOnChainLoading(true);
+    try {
+      const { address } = await loginAndConnectContract(contractAddress);
+      await updateEmployeeWallet(Number(id), address);
+      const updated = await getEmployee(Number(id));
+      setEmployee(updated);
+    } catch (err: any) {
+      alert(err?.message || "Failed to link wallet");
+    } finally {
+      setOnChainLoading(false);
+    }
+  };
+
+  const handleStartOnChainStream = async () => {
+    if (!id || !contractAddress || !employee?.wallet_address) {
+      alert("Employee must have wallet linked first");
+      return;
+    }
+    const rate = ratePerSecond ? ethers.parseEther(ratePerSecond) : ethers.parseEther("0.0001");
+    setOnChainLoading(true);
+    try {
+      const { contract } = await loginAndConnectContract(contractAddress);
+      const tx = await contract.startStream(employee.wallet_address, rate);
+      await tx.wait();
+      await startStream(Number(id));
+      const updated = await getEmployee(Number(id));
+      setEmployee(updated);
+      setRatePerSecond("");
+    } catch (err: any) {
+      alert(err?.message || "Failed to start on-chain stream");
+    } finally {
+      setOnChainLoading(false);
+    }
+  };
+
+  const handleStopOnChainStream = async () => {
+    if (!id || !contractAddress || !employee?.wallet_address) return;
+    setOnChainLoading(true);
+    try {
+      const { contract } = await loginAndConnectContract(contractAddress);
+      const tx = await contract.stopStream(employee.wallet_address);
+      await tx.wait();
+      await pauseStream(Number(id));
+      const updated = await getEmployee(Number(id));
+      setEmployee(updated);
+    } catch (err: any) {
+      alert(err?.message || "Failed to stop on-chain stream");
+    } finally {
+      setOnChainLoading(false);
     }
   };
 
@@ -85,6 +145,20 @@ export default function EmployeeDetails() {
           Role: {employee.role}
         </p>
 
+        {employee.wallet_address ? (
+          <p className="text-slate-500 text-sm mt-1">
+            Wallet: {employee.wallet_address.slice(0, 10)}...{employee.wallet_address.slice(-8)}
+          </p>
+        ) : contractAddress && (
+          <button
+            onClick={handleLinkWallet}
+            disabled={onChainLoading}
+            className="mt-2 px-4 py-1 text-sm bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 disabled:opacity-50"
+          >
+            {onChainLoading ? "Connecting..." : "Link Wallet (Web3Auth)"}
+          </button>
+        )}
+
         <div className="mt-4 flex items-center gap-4">
 
           <span
@@ -120,6 +194,39 @@ export default function EmployeeDetails() {
           Pause
         </button>
       </div>
+
+      {/* On-Chain Stream (when wallet linked and contract configured) */}
+      {contractAddress && employee?.wallet_address && (
+        <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-xl">
+          <h3 className="font-semibold text-indigo-900 mb-2">On-Chain Stream (HeLa)</h3>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div>
+              <label className="block text-xs text-indigo-700 mb-1">Rate (HLUSD/sec)</label>
+              <input
+                type="text"
+                placeholder="0.0001"
+                value={ratePerSecond}
+                onChange={(e) => setRatePerSecond(e.target.value)}
+                className="border px-3 py-2 rounded w-32 text-sm"
+              />
+            </div>
+            <button
+              onClick={handleStartOnChainStream}
+              disabled={onChainLoading || employee?.is_streaming}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {onChainLoading ? "..." : "Start On-Chain Stream"}
+            </button>
+            <button
+              onClick={handleStopOnChainStream}
+              disabled={onChainLoading || !employee?.is_streaming}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+            >
+              Stop On-Chain Stream
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Pay Salary (only when stream is active) */}
       {employee.is_streaming && (

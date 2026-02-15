@@ -27,6 +27,9 @@ class Employee(Base):
 
     is_streaming = Column(Boolean, default=False)
 
+    # On-chain wallet address (for CorePayroll contract)
+    wallet_address = Column(String(42), nullable=True)
+
     # 🔥 Simple Tax System
     use_custom_tax = Column(Boolean, default=False)
     custom_tax_rate = Column(Numeric(5, 2), nullable=True)

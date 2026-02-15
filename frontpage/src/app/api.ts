@@ -218,3 +218,20 @@ export async function deleteTaxSlab(id: number) {
     method: "DELETE",
   });
 }
+
+/* =========================
+   BLOCKCHAIN (Web3Auth + HeLa)
+========================= */
+export async function getBlockchainConfig() {
+  return apiRequest("/api/blockchain/config");
+}
+
+export async function updateEmployeeWallet(
+  employeeId: number,
+  walletAddress: string
+) {
+  return apiRequest(`/api/employees/${employeeId}/wallet`, {
+    method: "PUT",
+    body: JSON.stringify({ wallet_address: walletAddress }),
+  });
+}
