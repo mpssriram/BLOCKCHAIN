@@ -1,7 +1,16 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_serializer
 from datetime import datetime
 from typing import List, Optional
 from decimal import Decimal
+
+
+def _decimal_to_float(v):
+    """Serialize Decimal as float for JSON; accept float from DB/SQLite."""
+    if v is None:
+        return None
+    if hasattr(v, "__float__"):
+        return float(v)
+    return float(v)
 
 
 # =====================================================
@@ -11,6 +20,10 @@ from decimal import Decimal
 class TransactionBase(BaseModel):
     amount: Decimal
     description: str
+
+    @field_serializer("amount", when_used="json-unless-none")
+    def _serialize_amount(self, v):
+        return _decimal_to_float(v)
 
 
 class TransactionCreate(TransactionBase):
@@ -26,6 +39,10 @@ class TransactionResponse(BaseModel):
     timestamp: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("amount", "tax_amount")
+    def _serialize_decimal(self, v):
+        return _decimal_to_float(v)
 
 
 # =====================================================
@@ -45,6 +62,10 @@ class BonusResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("amount")
+    def _serialize_amount(self, v):
+        return _decimal_to_float(v)
 
 
 # =====================================================
@@ -80,6 +101,10 @@ class EmployeeResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("custom_tax_rate")
+    def _serialize_custom_tax_rate(self, v):
+        return _decimal_to_float(v)
+
 
 # =====================================================
 # EMPLOYEE TAX UPDATE
@@ -103,6 +128,10 @@ class CompanySettingsResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @field_serializer("default_tax_rate")
+    def _serialize_default_tax_rate(self, v):
+        return _decimal_to_float(v)
+
 
 class CompanySettingsUpdate(BaseModel):
     default_tax_rate: Decimal
@@ -125,6 +154,10 @@ class TaxSlabResponse(BaseModel):
     tax_rate: Decimal
 
     model_config = {"from_attributes": True}
+
+    @field_serializer("min_income", "max_income", "tax_rate")
+    def _serialize_decimal_fields(self, v):
+        return _decimal_to_float(v)
 
 
 # =====================================================

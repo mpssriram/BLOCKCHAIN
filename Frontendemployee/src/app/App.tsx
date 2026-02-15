@@ -6,7 +6,7 @@ import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
 import { YieldFeatures } from './components/YieldFeatures';
 import { getMyProfile, getMyTransactions, getBlockchainConfig } from './api';
-import { loginAndConnectContract, isConnected, getConnectedAddress } from '../blockchain/web3Auth';
+import { loginAndConnectContract, connectWalletOnly, isConnected, getConnectedAddress } from '../blockchain/web3Auth';
 import { ethers } from 'ethers';
 import { 
   Wallet, 
@@ -39,7 +39,9 @@ export default function App() {
       .then(([p, t, cfg]: [any, any, any]) => {
         setProfile(p);
         setTransactions(t || []);
-        if (cfg?.contract_address) setContractAddress(cfg.contract_address);
+        const addr = (cfg?.contract_address || '').trim();
+        const zeroAddr = '0x0000000000000000000000000000000000000000';
+        if (addr && addr.toLowerCase() !== zeroAddr.toLowerCase()) setContractAddress(addr);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -70,12 +72,35 @@ export default function App() {
   }
 
   async function handleConnectWallet() {
-    if (!contractAddress) return;
+    const expectedWallet = (profile?.employee?.wallet_address || '').trim().toLowerCase();
     try {
-      const { address, contract } = await loginAndConnectContract(contractAddress);
+      let address: string;
+      if (contractAddress) {
+        const { address: addr, contract } = await loginAndConnectContract(contractAddress);
+        address = addr;
+        const connected = address.toLowerCase();
+        if (expectedWallet && connected !== expectedWallet) {
+          alert(
+            'Wallet mismatch. Please connect the wallet that HR linked to your profile, or ask HR to link this wallet: ' +
+              address.slice(0, 10) + '...' + address.slice(-8)
+          );
+          return;
+        }
+        const amount = await contract.claimableAmount(address);
+        setClaimableWei(amount.toString());
+      } else {
+        // No contract configured: still open Web3Auth login modal so user can connect wallet
+        address = await connectWalletOnly();
+        const connected = address.toLowerCase();
+        if (expectedWallet && connected !== expectedWallet) {
+          alert(
+            'Wallet mismatch. Please connect the wallet that HR linked to your profile, or ask HR to link this wallet: ' +
+              address.slice(0, 10) + '...' + address.slice(-8)
+          );
+          return;
+        }
+      }
       setWalletAddress(address);
-      const amount = await contract.claimableAmount(address);
-      setClaimableWei(amount.toString());
     } catch (err: any) {
       alert(err?.message || 'Failed to connect wallet');
     }

@@ -93,7 +93,8 @@ class TreasuryService:
             raise HTTPException(status_code=400, detail="Amount must be greater than 0")
 
         treasury = TreasuryService.get_or_create(db)
-        treasury.total_balance += amount
+        current = float(treasury.total_balance) if treasury.total_balance is not None else 0.0
+        treasury.total_balance = current + amount
 
         db.commit()
         db.refresh(treasury)
@@ -106,11 +107,11 @@ class TreasuryService:
             raise HTTPException(status_code=400, detail="Amount must be greater than 0")
 
         treasury = TreasuryService.get_or_create(db)
-
-        if treasury.total_balance < amount:
+        current = float(treasury.total_balance) if treasury.total_balance is not None else 0.0
+        if current < amount:
             raise HTTPException(status_code=400, detail="Insufficient balance")
 
-        treasury.total_balance -= amount
+        treasury.total_balance = current - amount
 
         db.commit()
         db.refresh(treasury)
@@ -140,10 +141,11 @@ class TransactionService:
         tax_amount = TaxService.calculate_tax(db, employee, gross_amount)
         net_amount = gross_amount - tax_amount
 
-        if treasury.total_balance < net_amount:
+        current_balance = float(treasury.total_balance) if treasury.total_balance is not None else 0.0
+        if current_balance < net_amount:
             raise HTTPException(status_code=400, detail="Insufficient treasury funds")
 
-        treasury.total_balance -= net_amount
+        treasury.total_balance = current_balance - net_amount
 
         transaction = Transaction(
             employee_id=employee_id,
@@ -175,14 +177,15 @@ class BonusService:
             raise HTTPException(status_code=404, detail="Employee not found")
 
         treasury = TreasuryService.get_or_create(db)
+        current_balance = float(treasury.total_balance) if treasury.total_balance is not None else 0.0
 
         tax_amount = TaxService.calculate_tax(db, employee, gross_amount)
         net_amount = gross_amount - tax_amount
 
-        if treasury.total_balance < net_amount:
+        if current_balance < net_amount:
             raise HTTPException(status_code=400, detail="Insufficient treasury funds")
 
-        treasury.total_balance -= net_amount
+        treasury.total_balance = current_balance - net_amount
 
         bonus = Bonus(
             employee_id=employee_id,
