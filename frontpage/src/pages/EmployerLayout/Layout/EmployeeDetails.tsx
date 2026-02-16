@@ -23,7 +23,11 @@ export default function EmployeeDetails() {
     getEmployee(Number(id))
       .then(setEmployee)
       .catch(() => setEmployee(null));
-    getBlockchainConfig().then((cfg: any) => cfg?.contract_address && setContractAddress(cfg.contract_address));
+    getBlockchainConfig().then((cfg: any) => {
+      const addr = (cfg?.contract_address || "").trim();
+      const zeroAddr = "0x0000000000000000000000000000000000000000";
+      if (addr && addr.toLowerCase() !== zeroAddr.toLowerCase()) setContractAddress(addr);
+    });
   }, [id]);
 
   const handleActivate = async () => {

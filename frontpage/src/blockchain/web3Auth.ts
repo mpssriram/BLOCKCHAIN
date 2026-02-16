@@ -1,6 +1,12 @@
 /**
  * Web3Auth + Ethers.js bridge for HeLa Testnet.
- * Steps 3 & 4 from integration guide: Initialize Web3Auth, bridge to Ethers.js.
+ *
+ * Replaces MetaMask with an embedded wallet: user logs in (Email/Google), Web3Auth
+ * builds a secure wallet via MPC—no seed phrases or extensions. The blockchain
+ * only sees a valid signer; CorePayroll.sol is unchanged. HeLa network is
+ * hardcoded so users can't end up on the wrong network.
+ *
+ * Steps 3 & 4: Initialize Web3Auth → bridge provider to Ethers.js (same contract calls).
  */
 
 import { Web3Auth } from "@web3auth/modal";
@@ -8,6 +14,10 @@ import { ethers } from "ethers";
 import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "./config";
 
 const WEB3AUTH_CLIENT_ID = import.meta.env.VITE_WEB3AUTH_CLIENT_ID || "YOUR_WEB3AUTH_CLIENT_ID";
+const isPlaceholderClientId =
+  !WEB3AUTH_CLIENT_ID ||
+  WEB3AUTH_CLIENT_ID === "YOUR_WEB3AUTH_CLIENT_ID" ||
+  WEB3AUTH_CLIENT_ID.length < 20;
 
 let web3auth: Web3Auth | null = null;
 let payrollContract: ethers.Contract | null = null;
@@ -37,6 +47,11 @@ export async function loginAndConnectContract(contractAddress: string): Promise<
   contract: ethers.Contract;
   signer: ethers.Signer;
 }> {
+  if (isPlaceholderClientId) {
+    throw new Error(
+      "Web3Auth Client ID not set. Add VITE_WEB3AUTH_CLIENT_ID to frontpage/.env (get one at https://dashboard.web3auth.io)."
+    );
+  }
   const auth = await initWeb3Auth();
 
   // 1. Web3Auth login (Email, Google, etc.) instead of MetaMask
