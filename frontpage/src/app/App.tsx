@@ -40,17 +40,18 @@ function LandingPage() {
   );
 }
 
-
 /* App */
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-
         {/* Public Pages */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/employer-login" element={<EmployerLogin />} />
         <Route path="/employee-login" element={<EmployeeLogin />} />
+
+        {/* Redirect /employee to /employee-login if no token */}
+        <Route path="/employee" element={<Navigate to="/employee-login" replace />} />
 
         {/* Employer Dashboard (Protected + Nested Routes) */}
         <Route

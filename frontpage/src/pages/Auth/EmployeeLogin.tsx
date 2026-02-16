@@ -1,43 +1,28 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { login } from "../../app/api";
 
 export default function EmployeeLogin() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const handleLogin = async () => {
-
-        const formData = new URLSearchParams();
-        formData.append("username", email);
-        formData.append("password", password);
+        setError("");
+        setLoading(true);
 
         try {
-            const response = await fetch("/api/login", {
-            method: "POST",
-            headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    },
-            body: formData.toString(),
-
-
-            });
-
-            if (!response.ok) {
-                alert("Invalid credentials");
-                return;
-            }
-
-            const data = await response.json();
-
+            const data = await login(email, password);
             localStorage.setItem("token", data.access_token);
-
-            // redirect to employee dashboard
-            window.location.href = "/employee";
-
-        } catch (error) {
-            console.error(error);
-            alert("Login failed");
+            navigate("/employee");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Login failed");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -66,6 +51,12 @@ export default function EmployeeLogin() {
                     Access your earnings and payment tracking
                 </p>
 
+                {error && (
+                    <div className="mb-6 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                        {error}
+                    </div>
+                )}
+
                 <div className="space-y-6 text-left">
 
                     <div>
@@ -75,7 +66,8 @@ export default function EmployeeLogin() {
                             placeholder="employee@test.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full mt-2 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            disabled={loading}
+                            className="w-full mt-2 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
                         />
                     </div>
 
@@ -86,7 +78,8 @@ export default function EmployeeLogin() {
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full mt-2 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            disabled={loading}
+                            className="w-full mt-2 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
                         />
                     </div>
 
@@ -104,9 +97,10 @@ export default function EmployeeLogin() {
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleLogin}
-                        className="w-full py-4 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 shadow-xl"
+                        disabled={loading || !email || !password}
+                        className="w-full py-4 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 shadow-xl disabled:opacity-50"
                     >
-                        Sign In
+                        {loading ? "Signing in..." : "Sign In"}
                     </motion.button>
                 </div>
 

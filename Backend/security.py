@@ -1,6 +1,6 @@
 from passlib.context import CryptContext
 from jose import jwt, JWTError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -23,8 +23,8 @@ class SecurityService:
     # Password hashing
     # ---------------------------
     pwd_context = CryptContext(
-    schemes=["pbkdf2_sha256"],
-    deprecated="auto"
+        schemes=["pbkdf2_sha256"],
+        deprecated="auto"
     )
 
     # OAuth2 dependency
@@ -47,7 +47,7 @@ class SecurityService:
     @classmethod
     def create_access_token(cls, data: dict) -> str:
         to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(minutes=cls.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=cls.ACCESS_TOKEN_EXPIRE_MINUTES)
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, cls.SECRET_KEY, algorithm=cls.ALGORITHM)
 
