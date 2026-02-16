@@ -128,7 +128,7 @@ Example:
 
 ```
 Admin Login:
-Email: admin@test.com
+Email: employee@test.com
 Password: 123456
 ```
 
