@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getTreasury, depositTreasury, withdrawTreasury, getBlockchainConfig } from "../../app/api";
 import { loginAndConnectContract, logoutWeb3Auth, isConnected, getConnectedAddress } from "../../blockchain/web3Auth";
 import { ethers } from "ethers";
+import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "../../blockchain/config";
 
 export default function Treasury() {
   const [treasury, setTreasury] = useState<any>(null);
@@ -12,6 +13,9 @@ export default function Treasury() {
   const [onChainLoading, setOnChainLoading] = useState(false);
   const [connectLoading, setConnectLoading] = useState(false);
   const [contractAddress, setContractAddress] = useState<string | null>(null);
+  const [taxRate, setTaxRate] = useState<number | null>(null);
+  const [taxVault, setTaxVault] = useState<string | null>(null);
+  const [emergencyLoading, setEmergencyLoading] = useState(false);
 
   useEffect(() => {
     loadTreasury();
@@ -25,7 +29,6 @@ export default function Treasury() {
     try {
       const cfg = await getBlockchainConfig();
       const addr = (cfg?.contract_address || "").trim();
-      // Only treat as configured if it's a real contract address (not zero address)
       const zeroAddr = "0x0000000000000000000000000000000000000000";
       if (addr && addr.toLowerCase() !== zeroAddr.toLowerCase()) {
         setContractAddress(addr);
@@ -34,6 +37,30 @@ export default function Treasury() {
       // Not critical - on-chain features disabled
     }
   }
+
+  useEffect(() => {
+    async function loadTaxInfo() {
+      if (!contractAddress) {
+        setTaxRate(null);
+        setTaxVault(null);
+        return;
+      }
+      try {
+        const provider = new ethers.JsonRpcProvider(HELA_CHAIN_CONFIG.rpcTarget);
+        const roContract = new ethers.Contract(contractAddress, CORE_PAYROLL_ABI, provider);
+        const [rate, vault] = await Promise.all([
+          roContract.TAX_RATE?.().catch(() => null),
+          roContract.taxVault?.().catch(() => null),
+        ]);
+        if (rate !== null && rate !== undefined) setTaxRate(Number(rate));
+        if (vault) setTaxVault(String(vault));
+      } catch {
+        setTaxRate(null);
+        setTaxVault(null);
+      }
+    }
+    loadTaxInfo();
+  }, [contractAddress]);
 
   async function loadTreasury() {
     try {
@@ -116,6 +143,23 @@ export default function Treasury() {
     }
   }
 
+  async function handleEmergencyWithdraw() {
+    if (!contractAddress) return;
+    if (!confirm("Withdraw the entire contract treasury to the employer wallet?")) return;
+    try {
+      setEmergencyLoading(true);
+      const { contract } = await loginAndConnectContract(contractAddress);
+      const tx = await contract.emergencyWithdraw();
+      await tx.wait();
+      await loadTreasury();
+      alert("Emergency withdrawal completed");
+    } catch (err: any) {
+      alert(err?.message || "Emergency withdrawal failed");
+    } finally {
+      setEmergencyLoading(false);
+    }
+  }
+
   if (!treasury) {
     return <div className="p-10">Loading treasury...</div>;
   }
@@ -145,12 +189,18 @@ export default function Treasury() {
       </div>
 
       {/* Web3Auth Connect Wallet + On-Chain Deposit */}
-      {contractAddress ? (
+      {contractAddress && (
         <div className="bg-white shadow rounded-xl p-6 space-y-4">
           <h3 className="text-lg font-semibold">On-Chain Treasury (HeLa Testnet)</h3>
           <p className="text-sm text-gray-500">
             Connect via Web3Auth (Email, Google) to deposit HLUSD to the CorePayroll contract.
           </p>
+          {(taxRate !== null || taxVault) && (
+            <div className="text-xs text-gray-600">
+              {taxRate !== null && <p>Contract Tax Rate: {taxRate}%</p>}
+              {taxVault && <p>Tax Vault: {taxVault.slice(0, 8)}...{taxVault.slice(-6)}</p>}
+            </div>
+          )}
           {!walletAddress ? (
             <button
               onClick={handleConnectWallet}
@@ -188,38 +238,16 @@ export default function Treasury() {
                 >
                   {onChainLoading ? "Depositing..." : "Deposit to Contract"}
                 </button>
+                <button
+                  onClick={handleEmergencyWithdraw}
+                  disabled={emergencyLoading}
+                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  {emergencyLoading ? "Withdrawing..." : "Emergency Withdraw"}
+                </button>
               </div>
             </>
           )}
-        </div>
-      ) : (
-        <div className="bg-white shadow rounded-xl p-6 space-y-4">
-          <h3 className="text-lg font-semibold">On-Chain Treasury (HeLa Testnet)</h3>
-          <p className="text-sm text-gray-600">
-            On-chain treasury is not connected yet. To enable it and make the button work:
-          </p>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-            <p className="font-medium text-amber-800">How to get the Web3Auth Client ID (so the button works)</p>
-            <ol className="list-decimal list-inside text-sm text-amber-900 space-y-1">
-              <li>Open <a href="https://dashboard.web3auth.io" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">dashboard.web3auth.io</a> and sign in (or create an account).</li>
-              <li>Create a new project → choose <strong>Plug and Play</strong>.</li>
-              <li>Copy the <strong>Client ID</strong> (long string).</li>
-              <li>In your project, create <code className="bg-white px-1 rounded border border-amber-300">frontpage/.env</code> with this line (paste your Client ID):<br />
-                <code className="block mt-1 bg-white p-2 rounded border border-amber-300 text-xs break-all">VITE_WEB3AUTH_CLIENT_ID=paste_your_client_id_here</code>
-              </li>
-              <li>Restart the frontend (stop and run <code className="bg-white px-1 rounded border border-amber-300">npm run dev</code> again in the <code className="bg-white px-1 rounded border border-amber-300">frontpage</code> folder).</li>
-            </ol>
-          </div>
-
-          <p className="text-sm text-gray-600">Then:</p>
-          <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
-            <li>Deploy the <strong>CorePayroll</strong> contract to HeLa Testnet (see <code className="bg-gray-100 px-1 rounded">blockchain.sol</code> / <code className="bg-gray-100 px-1 rounded">deploy/</code>).</li>
-            <li>In <code className="bg-gray-100 px-1 rounded">Backend/.env</code>, set <code className="bg-gray-100 px-1 rounded">CONTRACT_ADDRESS=0x...</code> to your deployed contract address and restart the backend.</li>
-          </ol>
-          <p className="text-sm text-gray-500">
-            After that, the &quot;Connect Wallet (Web3Auth)&quot; button will appear and work when you click it.
-          </p>
         </div>
       )}
 

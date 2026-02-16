@@ -1,5 +1,6 @@
-// Must be first so Buffer is defined before Web3Auth/ethers load
-import "./buffer-global";
+// Buffer polyfill for browser (required by Web3Auth/ethers)
+import { Buffer } from "buffer";
+if (typeof window !== "undefined") (window as any).Buffer = Buffer;
 
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";

@@ -511,7 +511,6 @@ def get_my_profile(
             "email": emp.email,
             "role": emp.role,
             "is_streaming": emp.is_streaming,
-            "wallet_address": emp.wallet_address,
         },
         "total_earned": float(total_earned),
     }

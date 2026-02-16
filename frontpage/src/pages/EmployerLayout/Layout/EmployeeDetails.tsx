@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Play, PauseCircle } from "lucide-react";
 import { getEmployee, startStream, pauseStream, createTransaction, getBlockchainConfig, updateEmployeeWallet } from "../../../app/api";
 import { loginAndConnectContract } from "../../../blockchain/web3Auth";
+import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "../../../blockchain/config";
 import { ethers } from "ethers";
 
 export default function EmployeeDetails() {
@@ -17,17 +18,19 @@ export default function EmployeeDetails() {
   const [contractAddress, setContractAddress] = useState<string | null>(null);
   const [onChainLoading, setOnChainLoading] = useState(false);
   const [ratePerSecond, setRatePerSecond] = useState("");
+  const [streamDetails, setStreamDetails] = useState<{
+    ratePerSecond?: string;
+    lastWithdrawTime?: number;
+    accruedBalance?: string;
+    isActive?: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!id) return;
     getEmployee(Number(id))
       .then(setEmployee)
       .catch(() => setEmployee(null));
-    getBlockchainConfig().then((cfg: any) => {
-      const addr = (cfg?.contract_address || "").trim();
-      const zeroAddr = "0x0000000000000000000000000000000000000000";
-      if (addr && addr.toLowerCase() !== zeroAddr.toLowerCase()) setContractAddress(addr);
-    });
+    getBlockchainConfig().then((cfg: any) => cfg?.contract_address && setContractAddress(cfg.contract_address));
   }, [id]);
 
   const handleActivate = async () => {
@@ -110,6 +113,34 @@ export default function EmployeeDetails() {
     }
   };
 
+  useEffect(() => {
+    async function loadStreamDetails() {
+      if (!contractAddress || !employee?.wallet_address) {
+        setStreamDetails(null);
+        return;
+      }
+      try {
+        const provider = new ethers.JsonRpcProvider(HELA_CHAIN_CONFIG.rpcTarget);
+        const roContract = new ethers.Contract(contractAddress, CORE_PAYROLL_ABI, provider);
+        const s = await roContract.streams(employee.wallet_address);
+        const details = {
+          ratePerSecond:
+            (s.ratePerSecond && s.ratePerSecond.toString?.()) || (s[0] && s[0].toString?.()),
+          lastWithdrawTime:
+            (typeof s.lastWithdrawTime === "bigint" ? Number(s.lastWithdrawTime) : s[1] ? Number(s[1]) : undefined),
+          accruedBalance:
+            (s.accruedBalance && s.accruedBalance.toString?.()) || (s[2] && s[2].toString?.()),
+          isActive:
+            typeof s.isActive === "boolean" ? s.isActive : typeof s[3] === "boolean" ? s[3] : undefined,
+        };
+        setStreamDetails(details);
+      } catch {
+        setStreamDetails(null);
+      }
+    }
+    loadStreamDetails();
+  }, [contractAddress, employee?.wallet_address, employee?.is_streaming]);
+
   const handlePaySalary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !salaryAmount) return;
@@ -166,11 +197,10 @@ export default function EmployeeDetails() {
         <div className="mt-4 flex items-center gap-4">
 
           <span
-            className={`px-4 py-1 rounded-full font-semibold ${
-              employee.is_streaming
+            className={`px-4 py-1 rounded-full font-semibold ${employee.is_streaming
                 ? "bg-green-500 text-white"
                 : "bg-red-500 text-white"
-            }`}
+              }`}
           >
             {employee.is_streaming ? "Active" : "Paused"}
           </span>
@@ -229,6 +259,32 @@ export default function EmployeeDetails() {
               Stop On-Chain Stream
             </button>
           </div>
+          {streamDetails && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg border border-indigo-200 p-4">
+                <p className="text-xs text-indigo-700 mb-1">Current Rate</p>
+                <p className="text-sm text-indigo-900 font-semibold">
+                  {streamDetails.ratePerSecond
+                    ? `${Number(ethers.formatEther(streamDetails.ratePerSecond)).toFixed(6)} HLUSD/sec`
+                    : "—"}
+                </p>
+              </div>
+              <div className="bg-white rounded-lg border border-indigo-200 p-4">
+                <p className="text-xs text-indigo-700 mb-1">Accrued Balance</p>
+                <p className="text-sm text-indigo-900 font-semibold">
+                  {streamDetails.accruedBalance
+                    ? `${Number(ethers.formatEther(streamDetails.accruedBalance)).toFixed(6)} HLUSD`
+                    : "—"}
+                </p>
+                <p className="text-xs text-indigo-600 mt-1">
+                  Last Withdraw:{" "}
+                  {streamDetails.lastWithdrawTime
+                    ? new Date(streamDetails.lastWithdrawTime * 1000).toLocaleString()
+                    : "—"}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
