@@ -1,0 +1,10 @@
+node_modules/
+frontpage/node_modules/
+Frontendemployee/node_modules/
+frontpage/dist/
+Frontendemployee/dist/
+Backend/venv/
+Backend/.env
+*.log
+*.sqlite
+*.db

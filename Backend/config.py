@@ -11,5 +11,6 @@ class Settings(BaseSettings):
     CONTRACT_ADDRESS: Optional[str] = None
     TAX_VAULT_ADDRESS: Optional[str] = None
     TAX_RATE: int = 10
+    SECRET_KEY: Optional[str] = None
 
 settings = Settings()

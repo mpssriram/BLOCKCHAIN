@@ -1,5 +1,5 @@
+import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Search } from 'lucide-react';
-import { useState } from 'react';
 
 interface Transaction {
   id: string;
@@ -30,17 +30,22 @@ function toDisplay(api: ApiTransaction[]): Transaction[] {
   }));
 }
 
-export function TransactionHistory({ transactions: apiTransactions = [] }: { transactions?: ApiTransaction[] }) {
+export const TransactionHistory = React.memo(function TransactionHistory({ transactions: apiTransactions = [] }: { transactions?: ApiTransaction[] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const transactions = toDisplay(apiTransactions);
+  const transactions = useMemo(() => toDisplay(apiTransactions), [apiTransactions]);
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         transaction.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterType === 'all' || transaction.type === filterType;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredTransactions = useMemo(
+    () =>
+      transactions.filter((transaction) => {
+        const matchesSearch =
+          transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          transaction.category.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFilter = filterType === 'all' || transaction.type === filterType;
+        return matchesSearch && matchesFilter;
+      }),
+    [transactions, searchTerm, filterType]
+  );
 
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -147,4 +152,4 @@ export function TransactionHistory({ transactions: apiTransactions = [] }: { tra
       </div>
     </div>
   );
-}
+});

@@ -12,41 +12,14 @@ export function Hero() {
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 animate-gradient"></div>
       </div>
 
-      {/* Glowing orbs */}
       <motion.div
-        className="absolute top-20 left-20 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-20"
+        className="absolute top-1/2 left-1/2 w-80 h-80 bg-pink-500 rounded-full filter blur-3xl opacity-20"
         animate={{
-          scale: [1, 1.2, 1],
-          x: [0, 50, 0],
-          y: [0, 30, 0],
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-      <motion.div
-        className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-500 rounded-full filter blur-3xl opacity-20"
-        animate={{
-          scale: [1, 1.3, 1],
-          x: [0, -50, 0],
-          y: [0, -30, 0],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-      <motion.div
-        className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-500 rounded-full filter blur-3xl opacity-20"
-        animate={{
-          scale: [1, 1.4, 1],
+          scale: [1, 1.15, 1],
           rotate: [0, 180, 360],
         }}
         transition={{
-          duration: 15,
+          duration: 20,
           repeat: Infinity,
           ease: "easeInOut"
         }}

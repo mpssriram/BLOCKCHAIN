@@ -12,6 +12,7 @@ from models import (
     Bonus,
     CompanySettings
 )
+from config import settings
 
 # =====================================================
 # EMPLOYEE SERVICE
@@ -65,8 +66,8 @@ class TaxService:
             return (gross_amount * rate) / 100.0
 
         # 2️⃣ Company default tax
-        settings = db.query(CompanySettings).first()
-        rate = float(settings.default_tax_rate) if settings else 10.0
+        company_settings = db.query(CompanySettings).first()
+        rate = float(company_settings.default_tax_rate) if company_settings else float(settings.TAX_RATE)
 
         return (gross_amount * rate) / 100.0
 
@@ -242,8 +243,15 @@ class DashboardService:
 
     @staticmethod
     def monthly_summary(db: Session):
-        # MySQL: DATE_FORMAT; for SQLite use func.strftime("%Y-%m", ...)
-        month_expr = func.date_format(Transaction.timestamp, "%Y-%m")
+        dialect = (db.bind.dialect.name if db.bind else "sqlite").lower()
+        if dialect in ("sqlite"):
+            month_expr = func.strftime("%Y-%m", Transaction.timestamp)
+        elif dialect in ("mysql", "mariadb"):
+            month_expr = func.date_format(Transaction.timestamp, "%Y-%m")
+        elif dialect in ("postgresql", "postgres"):
+            month_expr = func.to_char(Transaction.timestamp, "YYYY-MM")
+        else:
+            month_expr = func.strftime("%Y-%m", Transaction.timestamp)
         results = (
             db.query(
                 month_expr.label("month"),

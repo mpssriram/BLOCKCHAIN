@@ -37,3 +37,10 @@ export async function getMyTransactions() {
 export async function getBlockchainConfig() {
   return apiRequest("/api/blockchain/config");
 }
+
+export async function updateMyWallet(wallet_address: string) {
+  return apiRequest("/api/me/wallet", {
+    method: "PUT",
+    body: JSON.stringify({ wallet_address }),
+  });
+}

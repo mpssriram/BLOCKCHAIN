@@ -18,7 +18,7 @@ const COLORS = [
   "#6366f1",
 ];
 
-export default function Overview() {
+function Overview() {
   const [activeStreams, setActiveStreams] = useState(0);
   const [totalPayroll, setTotalPayroll] = useState(0);
   const [topEarners, setTopEarners] = useState<any[]>([]);
@@ -116,3 +116,5 @@ export default function Overview() {
     </motion.div>
   );
 }
+
+export default React.memo(Overview);

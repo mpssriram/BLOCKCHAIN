@@ -514,3 +514,21 @@ def get_my_profile(
         },
         "total_earned": float(total_earned),
     }
+
+
+@router.put("/me/wallet")
+def update_my_wallet(
+    data: EmployeeWalletUpdate,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    emp = session.query(Employee).filter(Employee.email == current_user.email).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    wallet = (data.wallet_address or "").strip()
+    if wallet and not wallet.startswith("0x"):
+        raise HTTPException(status_code=400, detail="Invalid wallet address")
+    emp.wallet_address = wallet or None
+    session.commit()
+    session.refresh(emp)
+    return {"message": "Wallet updated", "wallet_address": emp.wallet_address}

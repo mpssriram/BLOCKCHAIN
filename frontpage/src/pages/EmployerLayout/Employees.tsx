@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 import { Search, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getEmployees, createEmployee } from "../../app/api";
 
-export default function Employees() {
+function Employees() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [employees, setEmployees] = useState<any[]>([]);
@@ -30,8 +30,12 @@ export default function Employees() {
     }
   }
 
-  const filteredEmployees = employees.filter((emp) =>
-    emp.name.toLowerCase().includes(search.toLowerCase())
+  const filteredEmployees = useMemo(
+    () =>
+      employees.filter((emp) =>
+        emp.name.toLowerCase().includes(search.toLowerCase())
+      ),
+    [employees, search]
   );
 
   async function handleAddEmployee(e: React.FormEvent) {
@@ -205,3 +209,5 @@ export default function Employees() {
     </motion.div>
   );
 }
+
+export default React.memo(Employees);

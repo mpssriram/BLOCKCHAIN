@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface ApiTransaction {
@@ -20,20 +21,25 @@ function buildMonthlyData(transactions: ApiTransaction[]) {
     if (!byMonth[key]) byMonth[key] = { income: 0, expenses: 0 };
     byMonth[key].income += Number(t.amount);
   });
-  const monthNames2 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return Object.entries(byMonth)
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-6)
     .map(([k, v]) => {
       const [y, m] = k.split('-');
-      const monthLabel = monthNames2[parseInt(m, 10) - 1];
+      const monthLabel = monthNames[parseInt(m, 10) - 1];
       return { month: `${monthLabel} ${y}`, income: v.income, expenses: v.expenses, balance: v.income - v.expenses };
     });
 }
 
-export function TransactionGraph({ transactions = [] }: { transactions?: ApiTransaction[] }) {
-  const monthlyData = buildMonthlyData(transactions);
-  const data = monthlyData.length > 0 ? monthlyData : [{ month: 'No data', income: 0, expenses: 0, balance: 0 }];
+export const TransactionGraph = React.memo(function TransactionGraph({ transactions = [] }: { transactions?: ApiTransaction[] }) {
+  const data = useMemo(() => {
+    const monthlyData = buildMonthlyData(transactions);
+    if (monthlyData.length === 0) {
+      return [{ month: 'No data', income: 0, expenses: 0, balance: 0 }];
+    }
+    return monthlyData;
+  }, [transactions]);
+
   return (
     <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
       <h3 className="text-xl font-semibold text-gray-900 mb-6">Monthly Transaction Overview</h3>
@@ -93,4 +99,4 @@ export function TransactionGraph({ transactions = [] }: { transactions?: ApiTran
       </ResponsiveContainer>
     </div>
   );
-}
+});
