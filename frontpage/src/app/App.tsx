@@ -50,8 +50,7 @@ export default function App() {
         <Route path="/employer-login" element={<EmployerLogin />} />
         <Route path="/employee-login" element={<EmployeeLogin />} />
 
-        {/* Redirect /employee to /employee-login if no token */}
-        <Route path="/employee" element={<Navigate to="/employee-login" replace />} />
+        {/* Employee portal is served by a separate app; frontpage does not host /employee */}
 
         {/* Employer Dashboard (Protected + Nested Routes) */}
         <Route

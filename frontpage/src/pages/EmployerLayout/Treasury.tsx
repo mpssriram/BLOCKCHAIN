@@ -16,6 +16,9 @@ export default function Treasury() {
   const [taxRate, setTaxRate] = useState<number | null>(null);
   const [taxVault, setTaxVault] = useState<string | null>(null);
   const [emergencyLoading, setEmergencyLoading] = useState(false);
+  const HELA_EXPLORER_TX = (import.meta as any).env?.VITE_HELA_EXPLORER_TX || "";
+  const HELA_EXPLORER_ADDRESS = (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS || "";
+  const HELA_TESTNET_WEBSITE = (import.meta as any).env?.VITE_HELA_TESTNET_WEBSITE || "";
 
   useEffect(() => {
     loadTreasury();
@@ -254,9 +257,19 @@ export default function Treasury() {
       {/* Sync Info */}
       <div className="bg-white shadow rounded-xl p-6 space-y-2">
         <p className="text-gray-500">Last Transaction Hash</p>
-        <p className="text-sm break-all text-purple-600">
-          {treasury.last_tx_hash || "No transaction yet"}
-        </p>
+        {treasury.last_tx_hash ? (
+          <a
+            href={HELA_EXPLORER_TX ? `${HELA_EXPLORER_TX}${treasury.last_tx_hash}` : "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`text-sm break-all ${HELA_EXPLORER_TX ? "text-blue-600 hover:underline" : "text-purple-600"}`}
+            title={HELA_EXPLORER_TX ? "View on HeLa Explorer" : ""}
+          >
+            {treasury.last_tx_hash}
+          </a>
+        ) : (
+          <p className="text-sm break-all text-purple-600">No transaction yet</p>
+        )}
 
         <p className="text-gray-500 mt-4">Last Synced</p>
         <p>
@@ -264,6 +277,32 @@ export default function Treasury() {
             ? new Date(treasury.last_synced_at).toLocaleString()
             : "Not synced yet"}
         </p>
+        {contractAddress && (
+          <div className="mt-4 flex gap-3 items-center">
+            <a
+              href={HELA_EXPLORER_ADDRESS ? `${HELA_EXPLORER_ADDRESS}${contractAddress}` : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`px-3 py-2 rounded-lg text-sm ${
+                HELA_EXPLORER_ADDRESS
+                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                  : "bg-gray-100 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {HELA_EXPLORER_ADDRESS ? "View Contract on HeLa Explorer" : "Set VITE_HELA_EXPLORER_ADDRESS"}
+            </a>
+            {HELA_TESTNET_WEBSITE && (
+              <a
+                href={HELA_TESTNET_WEBSITE}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 rounded-lg text-sm bg-purple-600 text-white hover:bg-purple-700"
+              >
+                Open HeLa Testnet
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Manage Treasury */}
