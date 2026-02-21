@@ -106,6 +106,14 @@ export function Hero() {
               className="group relative px-8 py-4 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-full font-semibold text-lg overflow-hidden"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                const el = document.getElementById('login-panel');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  window.location.href = '/employer-login';
+                }
+              }}
             >
               <span className="relative z-10 flex items-center gap-2">
                 Scroll to Login

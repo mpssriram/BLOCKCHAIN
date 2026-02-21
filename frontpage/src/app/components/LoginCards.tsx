@@ -37,7 +37,7 @@ export function LoginCards() {
 
 
   return (
-    <div className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 overflow-hidden">
+    <div id="login-panel" className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-900 via-indigo-900 to-purple-900 overflow-hidden">
       {/* Floating transaction icons */}
       <FloatingIcons />
 

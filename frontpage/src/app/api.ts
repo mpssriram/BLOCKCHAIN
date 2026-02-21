@@ -1,5 +1,5 @@
-// Empty = same origin. Vite dev proxy forwards /api to http://localhost:8000
-const BASE_URL = "";
+// Base API URL: dev uses proxy, production should set VITE_API_BASE to backend URL
+const BASE_URL = (import.meta as any).env?.VITE_API_BASE || "";
 
 /* =========================
    AUTH HEADER
@@ -27,7 +27,7 @@ async function apiRequest(path: string, options: RequestInit = {}) {
     try {
       const err = await res.json();
       errorMessage = err.detail || errorMessage;
-    } catch {}
+    } catch { }
     throw new Error(errorMessage);
   }
 

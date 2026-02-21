@@ -176,6 +176,33 @@ export default function App() {
       case 'overview':
         return (
           <div className="space-y-6">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center text-lg font-bold">
+                    {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900">{profile?.name || 'User'}</p>
+                    <p className="text-sm text-gray-600">{profile?.email || '—'}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {!walletAddress ? (
+                    <button
+                      onClick={handleConnectWallet}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      Link Wallet
+                    </button>
+                  ) : (
+                    <span className={`px-3 py-2 rounded-lg text-sm ${streamActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {streamActive ? 'Stream Active' : 'Stream Paused'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
@@ -235,6 +262,48 @@ export default function App() {
                     </button>
                   </div>
                 )}
+                {walletAddress && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button
+                      onClick={() => loadClaimable()}
+                      className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
+                    >
+                      Refresh Stream
+                    </button>
+                    <a
+                      href={
+                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                          ? `${(import.meta as any).env.VITE_HELA_EXPLORER_ADDRESS}${walletAddress}`
+                          : '#'
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-4 py-2 rounded-lg text-center ${
+                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                          : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      View Wallet on HeLa
+                    </a>
+                    <a
+                      href={
+                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS && contractAddress
+                          ? `${(import.meta as any).env.VITE_HELA_EXPLORER_ADDRESS}${contractAddress}`
+                          : '#'
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-4 py-2 rounded-lg text-center ${
+                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                          ? 'bg-purple-600 text-white hover:bg-purple-700'
+                          : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      View Contract
+                    </a>
+                  </div>
+                )}
                 {walletAddress && streamRateInfo && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
@@ -270,6 +339,29 @@ export default function App() {
 
             {/* Transaction Graph */}
             <TransactionGraph />
+
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Earnings Timeline</h3>
+              <div className="space-y-3">
+                {transactions.slice(0, 10).map((t, i) => {
+                  const amt = Number(t.amount) || 0;
+                  const maxAmt = Math.max(1, ...transactions.slice(0, 10).map((x: any) => Number(x.amount) || 0));
+                  const pct = Math.min(100, Math.round((amt / maxAmt) * 100));
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-20 text-sm text-gray-600">{new Date(t.timestamp).toLocaleDateString()}</div>
+                      <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-3 bg-gradient-to-r from-indigo-500 to-pink-500 rounded-full transition-all duration-700"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="w-24 text-right text-sm font-medium">₹{amt.toLocaleString()}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Recent Activity */}
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
