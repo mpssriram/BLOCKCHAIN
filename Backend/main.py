@@ -58,6 +58,23 @@ def startup():
         ))
         session.commit()
         print("✅ Test employer user created")
+    # Demo users (for screenshots and public testing)
+    if not session.query(User).filter(User.email == "employee@krackheads.com").first():
+        session.add(User(
+            email="employee@krackheads.com",
+            hashed_password=SecurityService.hash_password("employee123"),
+            role="employee"
+        ))
+        session.commit()
+        print("✅ Demo employee user created (employee@krackheads.com / employee123)")
+    if not session.query(User).filter(User.email == "admin@krackheads.com").first():
+        session.add(User(
+            email="admin@krackheads.com",
+            hashed_password=SecurityService.hash_password("admin123"),
+            role="employer"
+        ))
+        session.commit()
+        print("✅ Demo employer user created (admin@krackheads.com / admin123)")
 
     # Seed test employee
     if not session.query(Employee).first():
@@ -69,6 +86,16 @@ def startup():
         ))
         session.commit()
         print("✅ Test employee created")
+    # Ensure demo employee record exists
+    if not session.query(Employee).filter(Employee.email == "employee@krackheads.com").first():
+        session.add(Employee(
+            name="Demo Employee",
+            email="employee@krackheads.com",
+            role="Developer",
+            is_streaming=True
+        ))
+        session.commit()
+        print("✅ Demo employee created")
 
     # Seed treasury
     if not session.query(Treasury).first():
