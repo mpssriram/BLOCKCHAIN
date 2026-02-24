@@ -15,6 +15,7 @@ CORE_PAYROLL_ABI = [
     "function startStream(address _employee, uint256 _ratePerSecond) external",
     "function stopStream(address _employee) external",
     "function claimableAmount(address _employee) view returns (uint256)",
+    "function setTaxVault(address _vault) external",
     "function withdraw() external",
     "function emergencyWithdraw() external",
     "receive() external payable",

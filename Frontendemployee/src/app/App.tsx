@@ -6,7 +6,7 @@ import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
 import { YieldFeatures } from './components/YieldFeatures';
 import { getMyProfile, getMyTransactions, getBlockchainConfig, updateMyWallet } from './api';
-import { loginAndConnectContract, isConnected, getConnectedAddress } from '../blockchain/web3Auth';
+import { loginAndConnectContract, isConnected, getConnectedAddress, ensureHeLaNetwork } from '../blockchain/web3Auth';
 import { ethers } from 'ethers';
 import {
   Wallet,
@@ -200,6 +200,14 @@ export default function App() {
                       {streamActive ? 'Stream Active' : 'Stream Paused'}
                     </span>
                   )}
+                {!walletAddress && (typeof (window as any).ethereum !== 'undefined') && (
+                  <button
+                    onClick={() => ensureHeLaNetwork((window as any).ethereum)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    Add HeLa Network (MetaMask)
+                  </button>
+                )}
                 </div>
               </div>
             </div>

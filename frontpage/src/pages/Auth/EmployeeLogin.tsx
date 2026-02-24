@@ -18,8 +18,8 @@ export default function EmployeeLogin() {
         try {
             const data = await login(email, password);
             localStorage.setItem("token", data.access_token);
-      const target = import.meta.env.VITE_EMPLOYEE_PORTAL_URL || "/employee";
-      window.location.href = target;
+            const target = (import.meta as any).env?.VITE_EMPLOYEE_PORTAL_URL || "/employee";
+            window.location.href = target;
         } catch (err) {
             setError(err instanceof Error ? err.message : "Login failed");
         } finally {

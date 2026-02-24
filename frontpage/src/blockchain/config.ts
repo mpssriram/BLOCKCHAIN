@@ -26,6 +26,7 @@ export const CORE_PAYROLL_ABI = [
   "function streams(address _employee) view returns (uint256 ratePerSecond, uint256 lastWithdrawTime, uint256 accruedBalance, bool isActive)",
   "function TAX_RATE() view returns (uint256)",
   "function taxVault() view returns (address)",
+  "function setTaxVault(address _vault) external",
   "function withdraw() external",
   "function emergencyWithdraw() external",
   "event StreamStarted(address indexed employee, uint256 rate)",

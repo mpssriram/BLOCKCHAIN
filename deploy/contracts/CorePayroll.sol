@@ -2,11 +2,10 @@
 pragma solidity ^0.8.0;
 
 contract CorePayroll {
-    
     // -- 1. CONFIGURATION --
-    address public employer; 
-    address public taxVault; 
-    uint256 public constant TAX_RATE = 10; 
+    address public employer;
+    address public taxVault;
+    uint256 public constant TAX_RATE = 10;
 
     struct Stream {
         uint256 ratePerSecond;
@@ -19,7 +18,11 @@ contract CorePayroll {
 
     event StreamStarted(address indexed employee, uint256 rate);
     event StreamStopped(address indexed employee);
-    event Withdrawal(address indexed employee, uint256 netAmount, uint256 taxAmount);
+    event Withdrawal(
+        address indexed employee,
+        uint256 netAmount,
+        uint256 taxAmount
+    );
     event TreasuryFunded(uint256 amount);
     event EmergencyWithdrawal(uint256 amountRecovered);
 
@@ -30,7 +33,7 @@ contract CorePayroll {
 
     constructor(address _taxVault) {
         employer = msg.sender;
-        taxVault = _taxVault;
+        taxVault = _taxVault == address(0) ? employer : _taxVault;
     }
 
     receive() external payable {
@@ -42,9 +45,12 @@ contract CorePayroll {
         return address(this).balance;
     }
 
-    function startStream(address _employee, uint256 _ratePerSecond) external onlyEmployer {
+    function startStream(
+        address _employee,
+        uint256 _ratePerSecond
+    ) external onlyEmployer {
         Stream storage s = streams[_employee];
-        
+
         // SAFETY NET: Save pending earnings before updating
         if (s.isActive) {
             uint256 timeElapsed = block.timestamp - s.lastWithdrawTime;
@@ -54,18 +60,18 @@ contract CorePayroll {
         s.ratePerSecond = _ratePerSecond;
         s.lastWithdrawTime = block.timestamp;
         s.isActive = true;
-        
+
         emit StreamStarted(_employee, _ratePerSecond);
     }
 
     function stopStream(address _employee) external onlyEmployer {
         Stream storage s = streams[_employee];
         require(s.isActive, "Stream is already inactive");
-        
+
         // SAFETY NET: Save final earnings before pausing
         uint256 timeElapsed = block.timestamp - s.lastWithdrawTime;
         s.accruedBalance += timeElapsed * s.ratePerSecond;
-        
+
         s.isActive = false;
         emit StreamStopped(_employee);
     }
@@ -74,7 +80,7 @@ contract CorePayroll {
     function claimableAmount(address _employee) public view returns (uint256) {
         Stream memory s = streams[_employee];
         uint256 total = s.accruedBalance;
-        
+
         if (s.isActive) {
             uint256 timeElapsed = block.timestamp - s.lastWithdrawTime;
             total += timeElapsed * s.ratePerSecond;
@@ -85,7 +91,10 @@ contract CorePayroll {
     function withdraw() external {
         uint256 totalAccrued = claimableAmount(msg.sender);
         require(totalAccrued > 0, "No funds earned yet");
-        require(address(this).balance >= totalAccrued, "Treasury empty - Contact HR");
+        require(
+            address(this).balance >= totalAccrued,
+            "Treasury empty - Contact HR"
+        );
 
         Stream storage s = streams[msg.sender];
         s.lastWithdrawTime = block.timestamp;
@@ -111,5 +120,10 @@ contract CorePayroll {
         require(success, "Emergency withdrawal failed");
 
         emit EmergencyWithdrawal(balance);
+    }
+
+    function setTaxVault(address _taxVault) external onlyEmployer {
+        require(_taxVault != address(0), "Invalid address");
+        taxVault = _taxVault;
     }
 }

@@ -11,6 +11,8 @@ import { Footer } from "./components/Footer";
 /* Auth Pages */
 import EmployerLogin from "../pages/Auth/EmployerLogin";
 import EmployeeLogin from "../pages/Auth/EmployeeLogin";
+import SetToken from "../pages/Auth/SetToken";
+import AutoLogin from "../pages/Auth/AutoLogin";
 
 /* Employer Dashboard Layout */
 import EmployerLayout from "../pages/EmployerLayout/Layout/EmployerDashboard";
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/employer-login" element={<EmployerLogin />} />
         <Route path="/employee-login" element={<EmployeeLogin />} />
+        <Route path="/set-token" element={<SetToken />} />
+        <Route path="/auto-login" element={<AutoLogin />} />
 
         {/* Employee portal is served by a separate app; frontpage does not host /employee */}
 
