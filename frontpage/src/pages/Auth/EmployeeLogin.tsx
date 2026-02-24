@@ -26,6 +26,26 @@ export default function EmployeeLogin() {
             setLoading(false);
         }
     };
+    const handleDemoLogin = async () => {
+        const demoEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL || "";
+        const demoPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_PASSWORD || "";
+        if (!demoEmail || !demoPassword) {
+            setError("Demo credentials not set");
+            return;
+        }
+        setError("");
+        setLoading(true);
+        try {
+            const data = await login(demoEmail, demoPassword);
+            localStorage.setItem("token", data.access_token);
+            const target = (import.meta as any).env?.VITE_EMPLOYEE_PORTAL_URL || "/";
+            window.location.href = target;
+        } catch {
+            setError("Demo login failed");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 via-indigo-700 to-purple-900 p-6">
@@ -102,6 +122,15 @@ export default function EmployeeLogin() {
                         className="w-full py-4 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 shadow-xl disabled:opacity-50"
                     >
                         {loading ? "Signing in..." : "Sign In"}
+                    </motion.button>
+                    <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleDemoLogin}
+                        disabled={loading}
+                        className="mt-3 w-full py-4 rounded-xl text-white font-semibold text-lg bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-600 shadow-xl disabled:opacity-50"
+                    >
+                        Use Demo Login
                     </motion.button>
                 </div>
 

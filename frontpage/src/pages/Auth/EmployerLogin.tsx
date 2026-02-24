@@ -24,6 +24,26 @@ export default function EmployerLogin() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    const demoEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL || "";
+    const demoPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD || "";
+    if (!demoEmail || !demoPassword) {
+      setError("Demo credentials not set");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const data = await login(demoEmail, demoPassword);
+      localStorage.setItem("token", data.access_token);
+      navigate("/employer-dashboard/overview");
+    } catch {
+      setError("Demo login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
 
@@ -71,6 +91,13 @@ export default function EmployerLogin() {
                      disabled:opacity-50"
         >
           {loading ? "Signing In..." : "Access Dashboard →"}
+        </button>
+        <button
+          onClick={handleDemoLogin}
+          disabled={loading}
+          className="mt-3 w-full py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-indigo-500 to-blue-600 hover:opacity-90 transition duration-200 disabled:opacity-50"
+        >
+          Use Demo Login
         </button>
       </div>
 

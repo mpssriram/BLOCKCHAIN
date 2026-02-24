@@ -3,13 +3,19 @@
  * Step 3 from Web3Auth integration guide.
  */
 
+const CHAIN_ID = (import.meta as any).env?.VITE_HELA_CHAIN_ID || "0xA2D18";
+const RPC_URL = (import.meta as any).env?.VITE_HELA_RPC_URL || "https://testnet-rpc.helachain.com";
+const DISPLAY = (import.meta as any).env?.VITE_HELA_DISPLAY || "HeLa Testnet";
+const TICKER_NAME = (import.meta as any).env?.VITE_HELA_TICKER_NAME || "HLUSD";
+const TICKER = (import.meta as any).env?.VITE_HELA_TICKER || "HLUSD";
+
 export const HELA_CHAIN_CONFIG = {
   chainNamespace: "eip155" as const,
-  chainId: "0xA2D18", // 666888 in hex (HeLa Testnet ID)
-  rpcTarget: "https://testnet-rpc.helachain.com",
-  displayName: "HeLa Testnet",
-  tickerName: "HLUSD",
-  ticker: "HLUSD",
+  chainId: CHAIN_ID,
+  rpcTarget: RPC_URL,
+  displayName: DISPLAY,
+  tickerName: TICKER_NAME,
+  ticker: TICKER,
 };
 
 export const CORE_PAYROLL_ABI = [
