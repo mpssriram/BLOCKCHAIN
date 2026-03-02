@@ -1,30 +1,68 @@
 /**
  * Web3Auth + Ethers.js bridge for Employee portal.
- * Steps 3 & 4 from integration guide.
+ *
+ * BUGS FIXED:
+ *  1. Used `init()` (Wallet Services SDK) instead of `initModal()` (Modal SDK)
+ *  2. Missing `chainConfig` in Web3Auth constructor — network was never set
+ *  3. Added `reconnect()` to restore an existing session without showing the modal
  */
 
 import { Web3Auth } from "@web3auth/modal";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { ethers } from "ethers";
 import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "./config";
 
-const WEB3AUTH_CLIENT_ID = import.meta.env.VITE_WEB3AUTH_CLIENT_ID || "YOUR_WEB3AUTH_CLIENT_ID";
+const WEB3AUTH_CLIENT_ID = (import.meta as any).env?.VITE_WEB3AUTH_CLIENT_ID || "YOUR_WEB3AUTH_CLIENT_ID";
 
 let web3auth: Web3Auth | null = null;
 let payrollContract: ethers.Contract | null = null;
 let signer: ethers.Signer | null = null;
 
+/**
+ * Initialize Web3Auth modal (call once on app load or before first connect).
+ */
 export async function initWeb3Auth(): Promise<Web3Auth> {
   if (web3auth) return web3auth;
 
+  const privateKeyProvider = new EthereumPrivateKeyProvider({
+    config: { chainConfig: HELA_CHAIN_CONFIG }
+  });
+
+  // BUG FIX 1+2: Use `initModal()` (not `init()`), and pass `privateKeyProvider`
   web3auth = new Web3Auth({
     clientId: WEB3AUTH_CLIENT_ID,
-    // Using default network; chain will be selected by adapter
-  } as any);
+    web3AuthNetwork: "sapphire_devnet",       // use "sapphire_mainnet" for production
+    privateKeyProvider,
+  });
 
-  await (web3auth as any).init();
+  await web3auth.initModal();                 // BUG FIX 1: was `(web3auth as any).init()`
   return web3auth;
 }
 
+/**
+ * BUG FIX 3: Restore an existing Web3Auth session silently (no modal popup).
+ * Call this on app startup. Returns the wallet address if already connected, or null.
+ */
+export async function reconnectIfLoggedIn(contractAddress: string): Promise<string | null> {
+  try {
+    const auth = await initWeb3Auth();
+    // Web3Auth caches the session; if the provider is available the user is still logged in
+    if (!auth.provider) return null;
+
+    const provider = new ethers.BrowserProvider(auth.provider);
+    const s = await provider.getSigner();
+    payrollContract = new ethers.Contract(contractAddress, CORE_PAYROLL_ABI, s);
+    signer = s;
+    return await s.getAddress();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Connect wallet via Web3Auth and connect to CorePayroll contract.
+ * Call this when user clicks "Connect Wallet".
+ */
 export async function loginAndConnectContract(contractAddress: string): Promise<{
   address: string;
   contract: ethers.Contract;
@@ -34,7 +72,7 @@ export async function loginAndConnectContract(contractAddress: string): Promise<
 
   if (WEB3AUTH_CLIENT_ID && WEB3AUTH_CLIENT_ID !== "YOUR_WEB3AUTH_CLIENT_ID") {
     const auth = await initWeb3Auth();
-    const web3authProvider = await (auth as any).connect();
+    const web3authProvider = await auth.connect();
     if (!web3authProvider) throw new Error("Failed to connect Web3Auth");
     const provider = new ethers.BrowserProvider(web3authProvider);
     s = await provider.getSigner();
@@ -45,19 +83,19 @@ export async function loginAndConnectContract(contractAddress: string): Promise<
     await ensureHeLaNetwork(injected);
     s = await provider.getSigner();
   } else {
-    throw new Error("Wallet is not ready yet. Set VITE_WEB3AUTH_CLIENT_ID or install MetaMask.");
-    // No fallback available without a wallet
+    throw new Error("No wallet available. Set VITE_WEB3AUTH_CLIENT_ID or install MetaMask.");
   }
 
   payrollContract = new ethers.Contract(contractAddress, CORE_PAYROLL_ABI, s!);
   signer = s!;
 
   const address = await s!.getAddress();
-  console.log("Logged in with invisible wallet:", address);
-
   return { address, contract: payrollContract, signer: s! };
 }
 
+/**
+ * Disconnect Web3Auth session.
+ */
 export async function logoutWeb3Auth(): Promise<void> {
   if (web3auth) {
     await web3auth.logout();
@@ -71,6 +109,7 @@ export function isConnected(): boolean {
   return !!signer && !!payrollContract;
 }
 
+/** Returns existing contract — use this instead of loginAndConnectContract for read calls */
 export function getPayrollContract(): ethers.Contract | null {
   return payrollContract;
 }
@@ -103,6 +142,6 @@ export async function ensureHeLaNetwork(ethereum: any) {
       });
     }
   } catch {
-    // ignore
+    // ignore — network switch failure is non-fatal
   }
 }

@@ -6,7 +6,7 @@ import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
 import { YieldFeatures } from './components/YieldFeatures';
 import { getMyProfile, getMyTransactions, getBlockchainConfig, updateMyWallet } from './api';
-import { loginAndConnectContract, isConnected, getConnectedAddress, ensureHeLaNetwork } from '../blockchain/web3Auth';
+import { loginAndConnectContract, reconnectIfLoggedIn, isConnected, getConnectedAddress, getPayrollContract, ensureHeLaNetwork } from '../blockchain/web3Auth';
 import { ethers } from 'ethers';
 import {
   Wallet,
@@ -30,6 +30,7 @@ export default function App() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [streamRateWei, setStreamRateWei] = useState<string | null>(null);
   const [streamActive, setStreamActive] = useState<boolean | null>(null);
+  const [conversionRate, setConversionRate] = useState(0.012); // Default: 1 INR = 0.012 USD (approx)
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -41,21 +42,41 @@ export default function App() {
       .then(([p, t, cfg]: [any, any, any]) => {
         setProfile(p);
         setTransactions(t || []);
-        if (cfg?.contract_address) setContractAddress(cfg.contract_address);
+        const addr = cfg?.contract_address || null;
+        if (addr) setContractAddress(addr);
+
+        // BUG FIX 6: Restore wallet address on page refresh.
+        // Try to silently reconnect Web3Auth first; if that fails,
+        // fall back to the wallet address the employee saved to the backend.
+        if (addr) {
+          reconnectIfLoggedIn(addr).then((reconnectedAddr) => {
+            if (reconnectedAddr) {
+              setWalletAddress(reconnectedAddr);
+            } else if (p?.employee?.wallet_address) {
+              // Show saved wallet address (read-only until they reconnect)
+              setWalletAddress(p.employee.wallet_address);
+            }
+          });
+        } else if (p?.employee?.wallet_address) {
+          setWalletAddress(p.employee.wallet_address);
+        }
       })
       .catch(() => { })
       .finally(() => setLoading(false));
-
-    if (isConnected()) {
-      getConnectedAddress().then((addr) => setWalletAddress(addr));
-    }
   }, []);
 
   async function loadClaimable(addr?: string) {
     const targetAddress = addr ?? walletAddress;
     if (!contractAddress || !targetAddress) return;
     try {
-      const { contract } = await loginAndConnectContract(contractAddress);
+      // BUG FIX 5: Reuse the already-connected contract instead of calling
+      // loginAndConnectContract() which re-shows the Web3Auth modal on every refresh.
+      let contract = getPayrollContract();
+      if (!contract) {
+        // Not connected yet — connect silently (only opens modal if needed)
+        const result = await loginAndConnectContract(contractAddress);
+        contract = result.contract;
+      }
       const [amount, stream] = await Promise.all([
         contract.claimableAmount(targetAddress),
         contract.streams(targetAddress),
@@ -70,8 +91,8 @@ export default function App() {
           typeof stream.isActive === 'boolean'
             ? stream.isActive
             : typeof stream[3] === 'boolean'
-            ? stream[3]
-            : null;
+              ? stream[3]
+              : null;
         setStreamRateWei(rate);
         setStreamActive(active);
       }
@@ -93,7 +114,12 @@ export default function App() {
     try {
       const { address } = await loginAndConnectContract(contractAddress);
       setWalletAddress(address);
-      try { await updateMyWallet(address); } catch { }
+      // BUG FIX 7: Surface wallet-save errors instead of silently swallowing them.
+      try {
+        await updateMyWallet(address);
+      } catch (saveErr: any) {
+        alert('Wallet connected but failed to save to account: ' + (saveErr?.message || 'Unknown error'));
+      }
       await loadClaimable(address);
     } catch (err: any) {
       alert(err?.message || 'Failed to connect wallet');
@@ -124,7 +150,7 @@ export default function App() {
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       })
       .reduce((s, t) => s + Number(t.amount), 0);
-    const conversionAmount = (totalEarned / 83).toFixed(2);
+    const conversionAmount = (totalEarned * conversionRate).toFixed(2);
     return {
       totalBalance: totalEarned,
       monthlyIncome,
@@ -200,14 +226,14 @@ export default function App() {
                       {streamActive ? 'Stream Active' : 'Stream Paused'}
                     </span>
                   )}
-                {!walletAddress && (typeof (window as any).ethereum !== 'undefined') && (
-                  <button
-                    onClick={() => ensureHeLaNetwork((window as any).ethereum)}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                  >
-                    Add HeLa Network (MetaMask)
-                  </button>
-                )}
+                  {!walletAddress && (typeof (window as any).ethereum !== 'undefined') && (
+                    <button
+                      onClick={() => ensureHeLaNetwork((window as any).ethereum)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                      Add HeLa Network (MetaMask)
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -286,11 +312,10 @@ export default function App() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`px-4 py-2 rounded-lg text-center ${
-                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
-                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                          : 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                      }`}
+                      className={`px-4 py-2 rounded-lg text-center ${(import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                        }`}
                     >
                       View Wallet on HeLa
                     </a>
@@ -302,11 +327,10 @@ export default function App() {
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`px-4 py-2 rounded-lg text-center ${
-                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
-                          ? 'bg-purple-600 text-white hover:bg-purple-700'
-                          : 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                      }`}
+                      className={`px-4 py-2 rounded-lg text-center ${(import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                        : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                        }`}
                     >
                       View Contract
                     </a>
@@ -387,8 +411,8 @@ export default function App() {
                   >
                     <div className="flex items-center gap-4">
                       <div className={`p-3 rounded-lg ${activity.type === 'income'
-                          ? 'bg-green-100 text-green-600'
-                          : 'bg-red-100 text-red-600'
+                        ? 'bg-green-100 text-green-600'
+                        : 'bg-red-100 text-red-600'
                         }`}>
                         {activity.type === 'income' ? (
                           <ArrowDownLeft className="w-5 h-5" />
@@ -416,7 +440,13 @@ export default function App() {
         );
 
       case 'personal':
-        return <PersonalSetup />;
+        return (
+          <PersonalSetup
+            profile={profile}
+            conversionRate={conversionRate}
+            setConversionRate={setConversionRate}
+          />
+        );
 
       case 'transactions':
         return (

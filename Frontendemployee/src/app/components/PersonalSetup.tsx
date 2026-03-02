@@ -1,18 +1,24 @@
 import { User, Mail, Phone, MapPin, Briefcase, Calendar, Save, Edit2 } from 'lucide-react';
 import { useState } from 'react';
 
-export function PersonalSetup() {
+interface PersonalSetupProps {
+  profile: any;
+  conversionRate: number;
+  setConversionRate: (val: number) => void;
+}
+
+export function PersonalSetup({ profile, conversionRate, setConversionRate }: PersonalSetupProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [conversionRate, setConversionRate] = useState(1.0);
-  
+
+  const emp = profile?.employee;
   const userDetails = {
-    name: 'John Doe',
-    email: 'john.doe@company.com',
-    phone: '+91 98765 43210',
-    address: 'Mumbai, Maharashtra, India',
-    position: 'Senior Software Engineer',
-    joinDate: 'January 15, 2024',
-    employeeId: 'EMP-2024-001',
+    name: emp?.name || 'User',
+    email: profile?.email || '—',
+    phone: '+91 98765 43210',             // Optional: still mock as DB lacks these fields
+    address: 'Mumbai, MH, India',        // Optional: still mock as DB lacks these fields
+    position: (emp?.role || 'Employee').charAt(0).toUpperCase() + (emp?.role || 'Employee').slice(1),
+    joinDate: 'March 1, 2026',
+    employeeId: emp?.id ? `EMP-2026-${emp.id.toString().padStart(3, '0')}` : '—',
     department: 'Engineering',
   };
 
@@ -118,7 +124,7 @@ export function PersonalSetup() {
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Conversion Settings</h3>
         <p className="text-gray-600 mb-6">Set your preferred currency conversion rate for international transactions</p>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -131,7 +137,7 @@ export function PersonalSetup() {
               <option>GBP - British Pound</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Conversion Rate (to USD)

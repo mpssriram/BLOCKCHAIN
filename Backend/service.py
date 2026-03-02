@@ -265,13 +265,14 @@ class DashboardService:
         out = []
         for r in results:
             month_val = r[0] if r[0] else "0000-00"
-            income = float(r[1] or 0)
+            net = float(r[1] or 0)
             tax = float(r[2] or 0)
+            gross = net + tax
             out.append({
                 "month": month_val,
-                "income": income,
+                "income": gross,
                 "tax": tax,
-                "net": income,
+                "net": net,
             })
         return out
 

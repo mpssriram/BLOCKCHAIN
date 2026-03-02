@@ -15,7 +15,10 @@ class SecurityService:
     # ---------------------------
     # JWT settings
     # ---------------------------
-    SECRET_KEY = settings.SECRET_KEY or os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
+    # BUG FIX: Never use secrets.token_urlsafe() as a fallback here.
+    # A new random key on every cold start (Vercel serverless) invalidates ALL user JWTs.
+    # SECRET_KEY must always come from config. The config default is "CHANGE-ME-IN-PRODUCTION".
+    SECRET_KEY = settings.SECRET_KEY
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

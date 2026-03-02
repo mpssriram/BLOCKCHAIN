@@ -17,9 +17,15 @@ app = FastAPI()
 # -----------------------
 # CORS
 # -----------------------
+# Set ALLOWED_ORIGINS in your environment (comma-separated) to restrict access.
+# Example: ALLOWED_ORIGINS=https://myfrontend.vercel.app,https://myemployee.vercel.app
+# Leave unset (or "*") to allow all origins (fine for development).
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,6 +36,8 @@ app.add_middleware(
 # -----------------------
 @app.on_event("startup")
 def startup():
+    # NOTE: On Vercel serverless this runs on every cold start.
+    # All DB operations below are idempotent (check-before-insert), so this is safe.
     db.create_tables()
     # Add wallet_address to employees if missing (migration)
     try:
@@ -123,48 +131,59 @@ app.include_router(api_router, prefix="/api")
 app.include_router(blockchain_router, prefix="/api")
 
 # -----------------------
-# Frontend paths
+# Frontend static file serving (local/self-hosted mode only)
 # -----------------------
+# On Vercel, the two frontends are deployed as separate projects.
+# Static serving is skipped automatically when the dist/ folders don't exist.
 BASE_DIR = os.path.dirname(__file__)
 FRONTPAGE_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "frontpage", "dist"))
-
-# Confirmed employee dashboard path from your screenshot
 EMPLOYEE_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "Frontendemployee", "dist"))
 
-# -----------------------
-# Frontpage static assets
-# -----------------------
-app.mount("/assets", StaticFiles(directory=os.path.join(FRONTPAGE_PATH, "assets")), name="frontpage-assets")
-app.mount("/favicon.ico", StaticFiles(directory=FRONTPAGE_PATH), name="frontpage-favicon")
+if os.path.isdir(os.path.join(FRONTPAGE_PATH, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(FRONTPAGE_PATH, "assets")), name="frontpage-assets")
 
-# -----------------------
-# Employee dashboard static assets
-# -----------------------
-app.mount("/employee/assets", StaticFiles(directory=os.path.join(EMPLOYEE_PATH, "assets")), name="employee-assets")
-app.mount("/employee/favicon.ico", StaticFiles(directory=EMPLOYEE_PATH), name="employee-favicon")
+if os.path.isdir(FRONTPAGE_PATH):
+    app.mount("/favicon.ico", StaticFiles(directory=FRONTPAGE_PATH), name="frontpage-favicon")
 
-# -----------------------
-# Frontpage SPA
-# -----------------------
+if os.path.isdir(os.path.join(EMPLOYEE_PATH, "assets")):
+    app.mount("/employee/assets", StaticFiles(directory=os.path.join(EMPLOYEE_PATH, "assets")), name="employee-assets")
+
+if os.path.isdir(EMPLOYEE_PATH):
+    app.mount("/employee/favicon.ico", StaticFiles(directory=EMPLOYEE_PATH), name="employee-favicon")
+
+
 @app.get("/")
 def serve_frontpage():
-    return FileResponse(os.path.join(FRONTPAGE_PATH, "index.html"))
+    index = os.path.join(FRONTPAGE_PATH, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return {"message": "CorePayroll API is running. Deploy frontends separately on Vercel."}
 
-# Employee dashboard SPA - MUST be before catch-all so /employee matches
+
 @app.get("/employee")
 def serve_employee_root():
-    return FileResponse(os.path.join(EMPLOYEE_PATH, "index.html"))
+    index = os.path.join(EMPLOYEE_PATH, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return {"message": "Employee portal is deployed as a separate Vercel project."}
+
 
 @app.get("/employee/{full_path:path}")
 def catch_employee(full_path: str):
-    return FileResponse(os.path.join(EMPLOYEE_PATH, "index.html"))
+    index = os.path.join(EMPLOYEE_PATH, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return {"message": "Employee portal is deployed as a separate Vercel project."}
 
-# Catch-all for frontpage SPA (after /employee so employee routes match first)
+
 @app.get("/{full_path:path}")
 def catch_frontpage(full_path: str):
     if full_path.startswith("api"):
         return {"detail": "Not Found"}
-    return FileResponse(os.path.join(FRONTPAGE_PATH, "index.html"))
+    index = os.path.join(FRONTPAGE_PATH, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    return {"detail": "Not Found"}
 
 
 

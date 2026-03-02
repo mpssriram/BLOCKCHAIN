@@ -4,10 +4,11 @@
  */
 
 import { Web3Auth } from "@web3auth/modal";
+import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
 import { ethers } from "ethers";
 import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "./config";
 
-const WEB3AUTH_CLIENT_ID = import.meta.env.VITE_WEB3AUTH_CLIENT_ID || "YOUR_WEB3AUTH_CLIENT_ID";
+const WEB3AUTH_CLIENT_ID = (import.meta as any).env?.VITE_WEB3AUTH_CLIENT_ID || "YOUR_WEB3AUTH_CLIENT_ID";
 
 let web3auth: Web3Auth | null = null;
 let payrollContract: ethers.Contract | null = null;
@@ -19,9 +20,14 @@ let signer: ethers.Signer | null = null;
 export async function initWeb3Auth(): Promise<Web3Auth> {
   if (web3auth) return web3auth;
 
+  const privateKeyProvider = new EthereumPrivateKeyProvider({
+    config: { chainConfig: HELA_CHAIN_CONFIG }
+  });
+
   web3auth = new Web3Auth({
     clientId: WEB3AUTH_CLIENT_ID,
-    chainConfig: HELA_CHAIN_CONFIG,
+    web3AuthNetwork: "sapphire_devnet",
+    privateKeyProvider,
   });
 
   await web3auth.initModal();
