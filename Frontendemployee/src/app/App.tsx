@@ -35,7 +35,8 @@ export default function App() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
-      window.location.href = '/employee-login';
+      const loginUrl = (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || '/employee-login';
+      window.location.href = loginUrl;
       return;
     }
     Promise.all([getMyProfile(), getMyTransactions(), getBlockchainConfig()])

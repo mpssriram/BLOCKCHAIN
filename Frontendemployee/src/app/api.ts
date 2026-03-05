@@ -1,6 +1,7 @@
 // Same-origin API. Vite dev: proxy /api to backend. Production: set VITE_API_BASE to your Backend Vercel URL.
 // Example: VITE_API_BASE=https://corepayroll-api.vercel.app
 const BASE = (import.meta as any).env?.VITE_API_BASE || "";
+const EMPLOYEE_LOGIN_URL = (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || "/employee-login";
 
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
@@ -17,7 +18,9 @@ async function apiRequest(path: string, options: RequestInit = {}) {
   });
   if (res.status === 401) {
     localStorage.removeItem("token");
-    window.location.href = "/employee-login";
+    if (window.location.pathname !== "/employee-login") {
+      window.location.href = EMPLOYEE_LOGIN_URL;
+    }
     throw new Error("Unauthorized");
   }
   if (!res.ok) {

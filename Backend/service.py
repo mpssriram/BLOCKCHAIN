@@ -3,6 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 from datetime import datetime
 from fastapi import HTTPException
+from decimal import Decimal
+from typing import Optional
 
 from models import (
     Employee,
@@ -13,6 +15,12 @@ from models import (
     CompanySettings
 )
 from config import settings
+
+
+def _to_decimal(value) -> Decimal:
+    if isinstance(value, Decimal):
+        return value
+    return Decimal(str(value))
 
 # =====================================================
 # EMPLOYEE SERVICE
@@ -81,7 +89,7 @@ class TreasuryService:
     def get_or_create(db: Session):
         treasury = db.query(Treasury).first()
         if not treasury:
-            treasury = Treasury(total_balance=0.0, onchain_balance=0.0)
+            treasury = Treasury(total_balance=Decimal("0.00"), onchain_balance=Decimal("0.00"))
             db.add(treasury)
             db.commit()
             db.refresh(treasury)
@@ -94,7 +102,8 @@ class TreasuryService:
             raise HTTPException(status_code=400, detail="Amount must be greater than 0")
 
         treasury = TreasuryService.get_or_create(db)
-        treasury.total_balance += amount
+        amt = _to_decimal(amount)
+        treasury.total_balance = _to_decimal(treasury.total_balance) + amt
 
         db.commit()
         db.refresh(treasury)
@@ -108,10 +117,13 @@ class TreasuryService:
 
         treasury = TreasuryService.get_or_create(db)
 
-        if treasury.total_balance < amount:
+        amt = _to_decimal(amount)
+        current = _to_decimal(treasury.total_balance)
+
+        if current < amt:
             raise HTTPException(status_code=400, detail="Insufficient balance")
 
-        treasury.total_balance -= amount
+        treasury.total_balance = current - amt
 
         db.commit()
         db.refresh(treasury)
@@ -141,15 +153,19 @@ class TransactionService:
         tax_amount = TaxService.calculate_tax(db, employee, gross_amount)
         net_amount = gross_amount - tax_amount
 
-        if treasury.total_balance < net_amount:
+        net_amt_dec = _to_decimal(net_amount)
+        tax_amt_dec = _to_decimal(tax_amount)
+        treasury_balance = _to_decimal(treasury.total_balance)
+
+        if treasury_balance < net_amt_dec:
             raise HTTPException(status_code=400, detail="Insufficient treasury funds")
 
-        treasury.total_balance -= net_amount
+        treasury.total_balance = treasury_balance - net_amt_dec
 
         transaction = Transaction(
             employee_id=employee_id,
-            amount=net_amount,
-            tax_amount=tax_amount,
+            amount=net_amt_dec,
+            tax_amount=tax_amt_dec,
             description=description
         )
 
@@ -180,21 +196,25 @@ class BonusService:
         tax_amount = TaxService.calculate_tax(db, employee, gross_amount)
         net_amount = gross_amount - tax_amount
 
-        if treasury.total_balance < net_amount:
+        net_amt_dec = _to_decimal(net_amount)
+        tax_amt_dec = _to_decimal(tax_amount)
+        treasury_balance = _to_decimal(treasury.total_balance)
+
+        if treasury_balance < net_amt_dec:
             raise HTTPException(status_code=400, detail="Insufficient treasury funds")
 
-        treasury.total_balance -= net_amount
+        treasury.total_balance = treasury_balance - net_amt_dec
 
         bonus = Bonus(
             employee_id=employee_id,
-            amount=gross_amount,
+            amount=_to_decimal(gross_amount),
             reason=reason
         )
 
         transaction = Transaction(
             employee_id=employee_id,
-            amount=net_amount,
-            tax_amount=tax_amount,
+            amount=net_amt_dec,
+            tax_amount=tax_amt_dec,
             description=f"Bonus: {reason}"
         )
 
@@ -299,6 +319,7 @@ class StreamingService:
             "is_streaming": employee.is_streaming,
         }
 
+
     @staticmethod
     def pause_stream(db: Session, employee_id: int):
         employee = db.query(Employee).filter(Employee.id == employee_id).first()
@@ -316,5 +337,41 @@ class StreamingService:
             "employee_id": employee.id,
             "is_streaming": employee.is_streaming,
         }
+
+
+# =====================================================
+# BLOCKCHAIN TX SERVICE (On-chain status tracking)
+# =====================================================
+class BlockchainTxService:
+
+    @staticmethod
+    def upsert_tx(db: Session, tx_hash: str, tx_type: str, status: str = "pending") -> BlockchainTransaction:
+        existing = db.query(BlockchainTransaction).filter(BlockchainTransaction.tx_hash == tx_hash).first()
+        if existing:
+            existing.tx_type = tx_type
+            existing.status = status
+            db.commit()
+            db.refresh(existing)
+            return existing
+
+        tx = BlockchainTransaction(tx_hash=tx_hash, tx_type=tx_type, status=status)
+        db.add(tx)
+        db.commit()
+        db.refresh(tx)
+        return tx
+
+    @staticmethod
+    def get_tx(db: Session, tx_hash: str) -> Optional[BlockchainTransaction]:
+        return db.query(BlockchainTransaction).filter(BlockchainTransaction.tx_hash == tx_hash).first()
+
+    @staticmethod
+    def update_status(db: Session, tx_hash: str, status: str) -> BlockchainTransaction:
+        tx = db.query(BlockchainTransaction).filter(BlockchainTransaction.tx_hash == tx_hash).first()
+        if not tx:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        tx.status = status
+        db.commit()
+        db.refresh(tx)
+        return tx
 
 

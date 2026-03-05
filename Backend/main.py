@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 import os
+from decimal import Decimal
 
 from database import db
 from models import User, Employee, Treasury, CompanySettings
@@ -22,11 +23,12 @@ app = FastAPI()
 # Leave unset (or "*") to allow all origins (fine for development).
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+ALLOW_CREDENTIALS = ALLOWED_ORIGINS != ["*"]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -108,15 +110,15 @@ def startup():
     # Seed treasury
     if not session.query(Treasury).first():
         session.add(Treasury(
-            total_balance=100000.0,
-            onchain_balance=50000.0
+            total_balance=Decimal("100000.00"),
+            onchain_balance=Decimal("50000.00")
         ))
         session.commit()
         print("✅ Treasury initialized")
 
     # Seed company settings (for tax)
     if not session.query(CompanySettings).first():
-        session.add(CompanySettings(default_tax_rate=10.00))
+        session.add(CompanySettings(default_tax_rate=Decimal("10.00")))
         session.commit()
         print("✅ Company settings initialized")
 
@@ -135,9 +137,9 @@ app.include_router(blockchain_router, prefix="/api")
 # -----------------------
 # On Vercel, the two frontends are deployed as separate projects.
 # Static serving is skipped automatically when the dist/ folders don't exist.
-BASE_DIR = os.path.dirname(__file__)
-FRONTPAGE_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "frontpage", "dist"))
-EMPLOYEE_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "Frontendemployee", "dist"))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTPAGE_PATH = os.path.join(BASE_DIR, "frontpage", "dist")
+EMPLOYEE_PATH = os.path.join(BASE_DIR, "Frontendemployee", "dist")
 
 if os.path.isdir(os.path.join(FRONTPAGE_PATH, "assets")):
     app.mount("/assets", StaticFiles(directory=os.path.join(FRONTPAGE_PATH, "assets")), name="frontpage-assets")

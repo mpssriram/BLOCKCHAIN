@@ -91,7 +91,7 @@ class EmployeeTaxUpdate(BaseModel):
 
 
 class EmployeeWalletUpdate(BaseModel):
-    wallet_address: str
+    wallet_address: Optional[str] = None
 
 
 # =====================================================
@@ -145,3 +145,22 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class BlockchainTxCreate(BaseModel):
+    tx_hash: str
+    tx_type: str
+    status: Optional[str] = "pending"
+
+
+class BlockchainTxUpdate(BaseModel):
+    status: str
+
+
+class BlockchainTxResponse(BaseModel):
+    tx_hash: str
+    tx_type: str
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

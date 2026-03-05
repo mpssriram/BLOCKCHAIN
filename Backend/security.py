@@ -83,3 +83,23 @@ class SecurityService:
             raise credentials_exception
 
         return user
+
+
+    @classmethod
+    def require_employer(
+        cls,
+        current_user: User = Depends(get_current_user),
+    ) -> User:
+        if current_user.role != "employer":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Employer access required")
+        return current_user
+
+
+    @classmethod
+    def require_employee(
+        cls,
+        current_user: User = Depends(get_current_user),
+    ) -> User:
+        if current_user.role != "employee":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Employee access required")
+        return current_user
