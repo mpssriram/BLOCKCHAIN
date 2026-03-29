@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     APP_ENV: str = "development"
     ENABLE_DEMO_SEED: bool = False
-    DATABASE_URL: str  # e.g. mysql+pymysql://user:pass@host/dbname
+    DATABASE_URL: Optional[str] = None  # Optional; app can boot without a database
     HELA_RPC_URL: Optional[str] = None
     CONTRACT_ADDRESS: Optional[str] = None
     TAX_VAULT_ADDRESS: Optional[str] = None

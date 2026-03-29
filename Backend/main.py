@@ -36,6 +36,9 @@ app.add_middleware(
 
 
 def ensure_wallet_address_column() -> None:
+    if not db.is_configured:
+        return
+
     try:
         from sqlalchemy import text
 
@@ -118,6 +121,10 @@ def seed_demo_data(session: Session) -> None:
 
 @app.on_event("startup")
 def startup() -> None:
+    if not db.is_configured:
+        print("Startup complete (database disabled: DATABASE_URL not set)")
+        return
+
     db.create_tables()
     ensure_wallet_address_column()
 
