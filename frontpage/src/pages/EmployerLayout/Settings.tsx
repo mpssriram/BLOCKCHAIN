@@ -6,14 +6,26 @@ import {
   createTaxSlab,
   deleteTaxSlab,
   setEmployeeTax,
-  getEmployees
+  getEmployees,
+  getAuthRole,
+  getBlockchainConfig,
 } from "../../app/api";
+import { loginAndConnectContract } from "../../blockchain/web3Auth";
+import { CORE_PAYROLL_ABI, HELA_CHAIN_CONFIG } from "../../blockchain/config";
+import { ethers } from "ethers";
 
 export default function Settings() {
+  const authRole = getAuthRole();
+  const isAdmin = authRole === "admin";
 
   const [companyTax, setCompanyTax] = useState(0);
   const [slabs, setSlabs] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [contractAddress, setContractAddress] = useState<string | null>(null);
+  const [contractAdmin, setContractAdmin] = useState<string | null>(null);
+  const [contractEmployer, setContractEmployer] = useState<string | null>(null);
+  const [newEmployer, setNewEmployer] = useState("");
+  const [roleLoading, setRoleLoading] = useState(false);
 
   const [minIncome, setMinIncome] = useState("");
   const [maxIncome, setMaxIncome] = useState("");
@@ -36,6 +48,32 @@ export default function Settings() {
 
     const emp = await getEmployees();
     setEmployees(emp);
+  }
+
+  useEffect(() => {
+    loadRoleConfig();
+  }, []);
+
+  async function loadRoleConfig() {
+    try {
+      const cfg = await getBlockchainConfig();
+      const addr = (cfg?.contract_address || "").trim();
+      if (!addr) return;
+      setContractAddress(addr);
+
+      const provider = new ethers.JsonRpcProvider(HELA_CHAIN_CONFIG.rpcTarget);
+      const contract = new ethers.Contract(addr, CORE_PAYROLL_ABI, provider);
+      const [adminAddr, employerAddr] = await Promise.all([
+        contract.admin?.().catch(() => null),
+        contract.employer?.().catch(() => null),
+      ]);
+
+      setContractAdmin(adminAddr ? String(adminAddr) : null);
+      setContractEmployer(employerAddr ? String(employerAddr) : null);
+    } catch {
+      setContractAdmin(null);
+      setContractEmployer(null);
+    }
   }
 
   async function handleCompanyTaxUpdate() {
@@ -74,10 +112,78 @@ export default function Settings() {
     alert("Employee tax updated!");
   }
 
+  async function handleEmployerUpdate() {
+    if (!isAdmin) {
+      alert("Only admin can reassign the on-chain employer.");
+      return;
+    }
+    if (!contractAddress) {
+      alert("Contract not configured.");
+      return;
+    }
+    const nextEmployer = newEmployer.trim();
+    if (!nextEmployer || !nextEmployer.startsWith("0x")) {
+      alert("Enter a valid employer wallet address.");
+      return;
+    }
+
+    try {
+      setRoleLoading(true);
+      const { contract } = await loginAndConnectContract(contractAddress);
+      const tx = await contract.setEmployer(nextEmployer);
+      await tx.wait();
+      setNewEmployer("");
+      await loadRoleConfig();
+      alert("Employer wallet updated.");
+    } catch (err: any) {
+      alert(err?.message || "Failed to update employer wallet.");
+    } finally {
+      setRoleLoading(false);
+    }
+  }
+
   return (
     <div className="p-8 space-y-12">
 
       <h1 className="text-2xl font-bold">Tax Settings</h1>
+
+      <div className="bg-white p-6 rounded shadow max-w-2xl space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold mb-1">
+            Contract Roles
+          </h2>
+          <p className="text-sm text-slate-500">
+            Admin controls employer reassignment and emergency recovery. Employer keeps day-to-day stream operations.
+          </p>
+        </div>
+        <div className="space-y-2 text-sm">
+          <p><span className="font-medium">Signed-in role:</span> {authRole || "unknown"}</p>
+          <p><span className="font-medium">Admin wallet:</span> {contractAdmin || "Not available"}</p>
+          <p><span className="font-medium">Employer wallet:</span> {contractEmployer || "Not available"}</p>
+        </div>
+        <div className="flex flex-col gap-3 md:flex-row">
+          <input
+            type="text"
+            placeholder="New employer wallet address"
+            value={newEmployer}
+            onChange={(e) => setNewEmployer(e.target.value)}
+            disabled={!isAdmin || roleLoading || !contractAddress}
+            className="border p-2 rounded w-full disabled:bg-slate-100"
+          />
+          <button
+            onClick={handleEmployerUpdate}
+            disabled={!isAdmin || roleLoading || !contractAddress}
+            className="bg-slate-900 text-white px-4 py-2 rounded disabled:opacity-50"
+          >
+            {roleLoading ? "Updating..." : "Assign Employer"}
+          </button>
+        </div>
+        {!isAdmin && (
+          <p className="text-sm text-amber-700">
+            Employer reassignment is available only to admin accounts.
+          </p>
+        )}
+      </div>
 
       {/* ================= COMPANY TAX ================= */}
       <div className="bg-white p-6 rounded shadow max-w-md">

@@ -4,15 +4,14 @@ import { StatCard } from './components/StatCard';
 import { TransactionGraph } from './components/TransactionGraph';
 import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
-import { YieldFeatures } from './components/YieldFeatures';
 import { getMyProfile, getMyTransactions, getBlockchainConfig, updateMyWallet } from './api';
-import { loginAndConnectContract, reconnectIfLoggedIn, isConnected, getConnectedAddress, getPayrollContract, ensureHeLaNetwork } from '../blockchain/web3Auth';
+import { loginAndConnectContract, reconnectIfLoggedIn, getPayrollContract, ensureHeLaNetwork } from '../blockchain/web3Auth';
+import { HELA_CHAIN_CONFIG } from '../blockchain/config';
 import { ethers } from 'ethers';
 import {
   Wallet,
   TrendingUp,
   Calendar,
-  Activity,
   ArrowUpRight,
   ArrowDownLeft,
   Clock,
@@ -30,7 +29,15 @@ export default function App() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [streamRateWei, setStreamRateWei] = useState<string | null>(null);
   const [streamActive, setStreamActive] = useState<boolean | null>(null);
-  const [conversionRate, setConversionRate] = useState(0.012); // Default: 1 INR = 0.012 USD (approx)
+
+  function getReadOnlyContract() {
+    if (!contractAddress) return null;
+    const provider = new ethers.JsonRpcProvider(HELA_CHAIN_CONFIG.rpcTarget);
+    return new ethers.Contract(contractAddress, [
+      "function claimableAmount(address _employee) view returns (uint256)",
+      "function streams(address _employee) view returns (uint256 ratePerSecond, uint256 lastWithdrawTime, uint256 accruedBalance, bool isActive)",
+    ], provider);
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -46,15 +53,11 @@ export default function App() {
         const addr = cfg?.contract_address || null;
         if (addr) setContractAddress(addr);
 
-        // BUG FIX 6: Restore wallet address on page refresh.
-        // Try to silently reconnect Web3Auth first; if that fails,
-        // fall back to the wallet address the employee saved to the backend.
         if (addr) {
           reconnectIfLoggedIn(addr).then((reconnectedAddr) => {
             if (reconnectedAddr) {
               setWalletAddress(reconnectedAddr);
             } else if (p?.employee?.wallet_address) {
-              // Show saved wallet address (read-only until they reconnect)
               setWalletAddress(p.employee.wallet_address);
             }
           });
@@ -62,7 +65,7 @@ export default function App() {
           setWalletAddress(p.employee.wallet_address);
         }
       })
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
@@ -70,14 +73,8 @@ export default function App() {
     const targetAddress = addr ?? walletAddress;
     if (!contractAddress || !targetAddress) return;
     try {
-      // BUG FIX 5: Reuse the already-connected contract instead of calling
-      // loginAndConnectContract() which re-shows the Web3Auth modal on every refresh.
-      let contract = getPayrollContract();
-      if (!contract) {
-        // Not connected yet — connect silently (only opens modal if needed)
-        const result = await loginAndConnectContract(contractAddress);
-        contract = result.contract;
-      }
+      const contract = getPayrollContract() ?? getReadOnlyContract();
+      if (!contract) return;
       const [amount, stream] = await Promise.all([
         contract.claimableAmount(targetAddress),
         contract.streams(targetAddress),
@@ -115,7 +112,6 @@ export default function App() {
     try {
       const { address } = await loginAndConnectContract(contractAddress);
       setWalletAddress(address);
-      // BUG FIX 7: Surface wallet-save errors instead of silently swallowing them.
       try {
         await updateMyWallet(address);
       } catch (saveErr: any) {
@@ -151,13 +147,11 @@ export default function App() {
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       })
       .reduce((s, t) => s + Number(t.amount), 0);
-    const conversionAmount = (totalEarned * conversionRate).toFixed(2);
     return {
       totalBalance: totalEarned,
       monthlyIncome,
       monthlyExpenses: 0,
       nextPayrollDate: '30 March 2026',
-      conversionAmount,
       availableBalance: totalEarned,
     };
   }, [transactions, totalEarned]);
@@ -198,257 +192,254 @@ export default function App() {
     return d.toLocaleDateString();
   }
 
+  const renderOverview = () => (
+    <div className="space-y-6">
+      <section className="rounded-[30px] border border-white/60 bg-white/92 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)] backdrop-blur-sm">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-lg font-bold text-white shadow-lg">
+              {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Employee Account</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{profile?.name || 'User'}</p>
+              <p className="text-sm text-slate-600">{profile?.email || '--'}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {!walletAddress ? (
+              <button
+                onClick={handleConnectWallet}
+                className="rounded-2xl bg-slate-950 px-5 py-3 text-white transition hover:bg-slate-800"
+              >
+                Link Wallet
+              </button>
+            ) : (
+              <span className={`rounded-2xl px-4 py-3 text-sm font-medium ${streamActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                {streamActive ? 'Stream Active' : 'Stream Paused'}
+              </span>
+            )}
+            {!walletAddress && (typeof (window as any).ethereum !== 'undefined') && (
+              <button
+                onClick={() => ensureHeLaNetwork((window as any).ethereum)}
+                className="rounded-2xl bg-cyan-600 px-5 py-3 text-white transition hover:bg-cyan-700"
+              >
+                Add HeLa Network
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl bg-slate-950 px-5 py-4 text-white">
+            <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/70">Recorded Payouts</p>
+            <p className="mt-2 text-xl font-semibold">{Number(totalEarned).toLocaleString()} HLUSD</p>
+            <p className="mt-1 text-sm text-slate-300">Historical payout records stored by the backend.</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Wallet State</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">
+              {walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}` : 'Not linked yet'}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">Saved wallet syncs with your payroll access.</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Expected Review</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">{stats.nextPayrollDate}</p>
+            <p className="mt-1 text-sm text-slate-500">Reference checkpoint for treasury and payroll review.</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={<Wallet className="h-6 w-6" />}
+          title="Total Available Balance"
+          value={`${stats.availableBalance.toLocaleString()} HLUSD`}
+          subtitle="Recorded total"
+          iconBg="bg-cyan-600"
+        />
+        <StatCard
+          icon={<TrendingUp className="h-6 w-6" />}
+          title="Monthly Income"
+          value={`${stats.monthlyIncome.toLocaleString()} HLUSD`}
+          subtitle="Recorded this month"
+          iconBg="bg-emerald-500"
+        />
+        <StatCard
+          icon={<CreditCard className="h-6 w-6" />}
+          title="Monthly Expenses"
+          value={`${stats.monthlyExpenses.toLocaleString()} HLUSD`}
+          subtitle="Not used in current flow"
+          iconBg="bg-rose-500"
+        />
+        <StatCard
+          icon={<Calendar className="h-6 w-6" />}
+          title="Next Payroll Date"
+          value={stats.nextPayrollDate}
+          iconBg="bg-slate-900"
+        />
+      </div>
+
+      {contractAddress && (
+        <section className="rounded-[30px] border border-cyan-200 bg-gradient-to-br from-white to-cyan-50 p-6 shadow-[0_24px_60px_rgba(14,116,144,0.12)]">
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">On-Chain PayStream (HeLa Testnet)</h3>
+          {!walletAddress ? (
+            <button
+              onClick={handleConnectWallet}
+              className="rounded-2xl bg-cyan-600 px-6 py-3 text-white transition hover:bg-cyan-700"
+            >
+              Connect Wallet (Web3Auth)
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
+              </p>
+              <p className="text-lg font-semibold text-cyan-700">
+                Claimable: {claimableWei ? `${ethers.formatEther(claimableWei)} HLUSD` : '0 HLUSD'}
+              </p>
+              <button
+                onClick={handleWithdraw}
+                disabled={withdrawLoading || !claimableWei || claimableWei === '0'}
+                className="rounded-2xl bg-slate-950 px-6 py-3 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {withdrawLoading ? 'Withdrawing...' : 'Withdraw'}
+              </button>
+            </div>
+          )}
+
+          {walletAddress && (
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <button
+                onClick={() => loadClaimable()}
+                className="rounded-2xl bg-white px-4 py-3 text-slate-800 shadow-sm transition hover:bg-slate-100"
+              >
+                Refresh Stream
+              </button>
+              <a
+                href={
+                  (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                    ? `${(import.meta as any).env.VITE_HELA_EXPLORER_ADDRESS}${walletAddress}`
+                    : '#'
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`rounded-2xl px-4 py-3 text-center ${(import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                  ? 'bg-cyan-600 text-white hover:bg-cyan-700'
+                  : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                View Wallet on HeLa
+              </a>
+              <a
+                href={
+                  (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS && contractAddress
+                    ? `${(import.meta as any).env.VITE_HELA_EXPLORER_ADDRESS}${contractAddress}`
+                    : '#'
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`rounded-2xl px-4 py-3 text-center ${(import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
+                  ? 'bg-slate-950 text-white hover:bg-slate-800'
+                  : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                View Contract
+              </a>
+            </div>
+          )}
+
+          {walletAddress && streamRateInfo && (
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-cyan-200 bg-white p-4">
+                <p className="mb-1 text-xs text-cyan-700">Live Stream Rate</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {streamRateInfo.perSecond.toFixed(6)} HLUSD/sec
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Approx {streamRateInfo.perMonth.toFixed(2)} HLUSD per 30 days
+                </p>
+                {streamActive === false && (
+                  <p className="mt-1 text-xs text-rose-500">Stream is currently paused</p>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <TransactionGraph />
+
+      <section className="rounded-[30px] border border-white/60 bg-white/92 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+          <h3 className="mb-4 text-xl font-semibold text-slate-900">Recorded Payout Timeline</h3>
+        <div className="space-y-3">
+          {transactions.slice(0, 10).map((t, i) => {
+            const amt = Number(t.amount) || 0;
+            const maxAmt = Math.max(1, ...transactions.slice(0, 10).map((x: any) => Number(x.amount) || 0));
+            const pct = Math.min(100, Math.round((amt / maxAmt) * 100));
+            return (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-24 text-sm text-slate-600">{new Date(t.timestamp).toLocaleDateString()}</div>
+                <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-700"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="w-28 text-right text-sm font-medium text-slate-700">{amt.toLocaleString()} HLUSD</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-[30px] border border-white/60 bg-white/92 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-slate-900">Recent Activity</h3>
+          <button className="text-sm font-medium text-cyan-700 hover:text-cyan-800">View All</button>
+        </div>
+        <div className="space-y-4">
+          {recentActivities.map((activity, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 transition-colors hover:bg-slate-100"
+            >
+              <div className="flex items-center gap-4">
+                <div className={`rounded-xl p-3 ${activity.type === 'income'
+                  ? 'bg-emerald-100 text-emerald-600'
+                  : 'bg-red-100 text-red-600'
+                  }`}>
+                  {activity.type === 'income' ? (
+                    <ArrowDownLeft className="h-5 w-5" />
+                  ) : (
+                    <ArrowUpRight className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">{activity.title}</p>
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <Clock className="h-3 w-3" />
+                    <span>{activity.time}</span>
+                  </div>
+                </div>
+              </div>
+              <p className={`font-semibold ${activity.type === 'income' ? 'text-emerald-600' : 'text-red-600'}`}>
+                {activity.type === 'income' ? '+' : '-'}{activity.amount.toLocaleString()} HLUSD
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return (
-          <div className="space-y-6">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-purple-600 text-white flex items-center justify-center text-lg font-bold">
-                    {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-gray-900">{profile?.name || 'User'}</p>
-                    <p className="text-sm text-gray-600">{profile?.email || '—'}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {!walletAddress ? (
-                    <button
-                      onClick={handleConnectWallet}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                    >
-                      Link Wallet
-                    </button>
-                  ) : (
-                    <span className={`px-3 py-2 rounded-lg text-sm ${streamActive ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                      {streamActive ? 'Stream Active' : 'Stream Paused'}
-                    </span>
-                  )}
-                  {!walletAddress && (typeof (window as any).ethereum !== 'undefined') && (
-                    <button
-                      onClick={() => ensureHeLaNetwork((window as any).ethereum)}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                    >
-                      Add HeLa Network (MetaMask)
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <StatCard
-                icon={<Wallet className="w-6 h-6" />}
-                title="Total Available Balance"
-                value={`₹${stats.availableBalance.toLocaleString()}`}
-                subtitle="Current balance"
-                iconBg="bg-purple-500"
-              />
-              <StatCard
-                icon={<TrendingUp className="w-6 h-6" />}
-                title="Monthly Income"
-                value={`₹${stats.monthlyIncome.toLocaleString()}`}
-                subtitle="+15% from last month"
-                iconBg="bg-green-500"
-              />
-              <StatCard
-                icon={<CreditCard className="w-6 h-6" />}
-                title="Monthly Expenses"
-                value={`₹${stats.monthlyExpenses.toLocaleString()}`}
-                subtitle="-8% from last month"
-                iconBg="bg-pink-500"
-              />
-              <StatCard
-                icon={<Calendar className="w-6 h-6" />}
-                title="Next Payroll Date"
-                value={stats.nextPayrollDate}
-                iconBg="bg-cyan-500"
-              />
-            </div>
-
-            {/* On-Chain Withdraw (Web3Auth + HeLa) */}
-            {contractAddress && (
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-indigo-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">On-Chain Earnings (HeLa Testnet)</h3>
-                {!walletAddress ? (
-                  <button
-                    onClick={handleConnectWallet}
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                  >
-                    Connect Wallet (Web3Auth)
-                  </button>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-sm text-gray-600">
-                      Wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
-                    </p>
-                    <p className="text-lg font-semibold text-indigo-600">
-                      Claimable: {claimableWei ? `${ethers.formatEther(claimableWei)} HLUSD` : '0 HLUSD'}
-                    </p>
-                    <button
-                      onClick={handleWithdraw}
-                      disabled={withdrawLoading || !claimableWei || claimableWei === '0'}
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {withdrawLoading ? 'Withdrawing...' : 'Withdraw'}
-                    </button>
-                  </div>
-                )}
-                {walletAddress && (
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <button
-                      onClick={() => loadClaimable()}
-                      className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200"
-                    >
-                      Refresh Stream
-                    </button>
-                    <a
-                      href={
-                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
-                          ? `${(import.meta as any).env.VITE_HELA_EXPLORER_ADDRESS}${walletAddress}`
-                          : '#'
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`px-4 py-2 rounded-lg text-center ${(import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                        : 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        }`}
-                    >
-                      View Wallet on HeLa
-                    </a>
-                    <a
-                      href={
-                        (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS && contractAddress
-                          ? `${(import.meta as any).env.VITE_HELA_EXPLORER_ADDRESS}${contractAddress}`
-                          : '#'
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`px-4 py-2 rounded-lg text-center ${(import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS
-                        ? 'bg-purple-600 text-white hover:bg-purple-700'
-                        : 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        }`}
-                    >
-                      View Contract
-                    </a>
-                  </div>
-                )}
-                {walletAddress && streamRateInfo && (
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                      <p className="text-xs text-indigo-700 mb-1">Live Stream Rate</p>
-                      <p className="text-sm text-indigo-900 font-semibold">
-                        {streamRateInfo.perSecond.toFixed(6)} HLUSD/sec
-                      </p>
-                      <p className="text-xs text-indigo-600 mt-1">
-                        ≈ {streamRateInfo.perMonth.toFixed(2)} HLUSD per 30 days
-                      </p>
-                      {streamActive === false && (
-                        <p className="text-xs text-rose-500 mt-1">Stream is currently paused</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Conversion Amount Card */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 text-white shadow-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/80 text-sm mb-2">Conversion Amount (USD)</p>
-                  <p className="text-4xl font-bold mb-1">${stats.conversionAmount.toLocaleString()}</p>
-                  <p className="text-white/80 text-sm">≈ ₹{stats.totalBalance.toLocaleString()} INR</p>
-                </div>
-                <div className="bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                  <Activity className="w-8 h-8" />
-                </div>
-              </div>
-            </div>
-
-            {/* Transaction Graph */}
-            <TransactionGraph />
-
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Earnings Timeline</h3>
-              <div className="space-y-3">
-                {transactions.slice(0, 10).map((t, i) => {
-                  const amt = Number(t.amount) || 0;
-                  const maxAmt = Math.max(1, ...transactions.slice(0, 10).map((x: any) => Number(x.amount) || 0));
-                  const pct = Math.min(100, Math.round((amt / maxAmt) * 100));
-                  return (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-20 text-sm text-gray-600">{new Date(t.timestamp).toLocaleDateString()}</div>
-                      <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-3 bg-gradient-to-r from-indigo-500 to-pink-500 rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <div className="w-24 text-right text-sm font-medium">₹{amt.toLocaleString()}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Recent Activity</h3>
-                <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">
-                  View All
-                </button>
-              </div>
-              <div className="space-y-4">
-                {recentActivities.map((activity, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-lg ${activity.type === 'income'
-                        ? 'bg-green-100 text-green-600'
-                        : 'bg-red-100 text-red-600'
-                        }`}>
-                        {activity.type === 'income' ? (
-                          <ArrowDownLeft className="w-5 h-5" />
-                        ) : (
-                          <ArrowUpRight className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{activity.title}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <Clock className="w-3 h-3" />
-                          <span>{activity.time}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className={`font-semibold ${activity.type === 'income' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                      {activity.type === 'income' ? '+' : '-'}₹{activity.amount.toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
+        return renderOverview();
       case 'personal':
-        return (
-          <PersonalSetup
-            profile={profile}
-            conversionRate={conversionRate}
-            setConversionRate={setConversionRate}
-          />
-        );
-
+        return <PersonalSetup profile={profile} />;
       case 'transactions':
         return (
           <div className="space-y-6">
@@ -456,79 +447,36 @@ export default function App() {
             <TransactionHistory transactions={transactions} />
           </div>
         );
-
       case 'history':
         return <TransactionHistory transactions={transactions} />;
-
-      case 'yield':
-        return <YieldFeatures />;
-
-      case 'settings':
-        return (
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-            <h3 className="text-xl font-semibold text-gray-900 mb-6">Settings</h3>
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Notifications
-                </label>
-                <div className="flex items-center gap-3">
-                  <input type="checkbox" defaultChecked className="w-4 h-4 text-purple-600" />
-                  <span className="text-gray-600">Receive transaction alerts</span>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Two-Factor Authentication
-                </label>
-                <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
-                  Enable 2FA
-                </button>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Change Password
-                </label>
-                <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                  Update Password
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 flex">
+    <div className="flex min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.28),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.22),_transparent_24%),linear-gradient(135deg,#0f172a_0%,#111827_38%,#155e75_100%)]">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <main className="flex-1 p-8 overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">
+      <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 rounded-[30px] border border-white/10 bg-white/6 px-6 py-5 backdrop-blur-xl">
+            <h1 className="mb-2 text-3xl font-bold text-white">
               {activeTab === 'overview' && 'Dashboard Overview'}
-              {activeTab === 'personal' && 'Personal Setup'}
+              {activeTab === 'personal' && 'Profile'}
               {activeTab === 'transactions' && 'Transactions'}
               {activeTab === 'history' && 'Transaction History'}
-              {activeTab === 'yield' && 'Yield & Investments'}
-              {activeTab === 'settings' && 'Settings'}
             </h1>
-            <p className="text-white/80">
-              {activeTab === 'overview' && 'Welcome back! Here\'s your financial overview.'}
+            <p className="text-slate-200/90">
+              {activeTab === 'overview' && 'Welcome back. Here is your financial overview in a cleaner workspace.'}
               {activeTab === 'personal' && 'Manage your personal information and preferences.'}
               {activeTab === 'transactions' && 'View and analyze your transactions.'}
               {activeTab === 'history' && 'Complete history of all your transactions.'}
-              {activeTab === 'yield' && 'Manage your yield accounts and investments.'}
-              {activeTab === 'settings' && 'Configure your account settings.'}
             </p>
           </div>
 
           {loading ? (
-            <div className="text-white/80">Loading...</div>
+            <div className="rounded-3xl border border-white/10 bg-white/6 px-6 py-8 text-slate-200">Loading...</div>
           ) : (
             renderContent()
           )}

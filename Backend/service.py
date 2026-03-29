@@ -317,6 +317,7 @@ class StreamingService:
             "success": True,
             "employee_id": employee.id,
             "is_streaming": employee.is_streaming,
+            "stream_action": "active",
         }
 
 
@@ -336,6 +337,26 @@ class StreamingService:
             "success": True,
             "employee_id": employee.id,
             "is_streaming": employee.is_streaming,
+            "stream_action": "paused",
+        }
+
+    @staticmethod
+    def cancel_stream(db: Session, employee_id: int):
+        employee = db.query(Employee).filter(Employee.id == employee_id).first()
+
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found")
+
+        employee.is_streaming = False
+
+        db.commit()
+        db.refresh(employee)
+
+        return {
+            "success": True,
+            "employee_id": employee.id,
+            "is_streaming": employee.is_streaming,
+            "stream_action": "cancelled",
         }
 
 

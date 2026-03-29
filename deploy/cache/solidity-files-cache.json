@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\python_practice\\BLOCKCHAIN\\deploy\\contracts\\CorePayroll.sol": {
-      "lastModificationDate": 1771175831830,
-      "contentHash": "6762c2bd59b01fe56c56b90276826092",
+      "lastModificationDate": 1774783539518,
+      "contentHash": "749d16d4d53beae1e18f93eb3f045c52",
       "sourceName": "contracts/CorePayroll.sol",
       "solcConfig": {
         "version": "0.8.20",

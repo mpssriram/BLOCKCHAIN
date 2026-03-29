@@ -11,11 +11,11 @@ import React, { useEffect, useState } from "react";
 import { getActiveStreams, getTotalPayout, getTopEarners } from "../../app/api";
 
 const COLORS = [
-  "#3b82f6",
+  "#2563eb",
   "#14b8a6",
   "#10b981",
   "#f59e0b",
-  "#6366f1",
+  "#8b5cf6",
 ];
 
 function Overview() {
@@ -54,58 +54,60 @@ function Overview() {
       transition={{ duration: 0.4 }}
       className="relative"
     >
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-
-        <div className="rounded-xl p-6 bg-white/70 backdrop-blur-md shadow-lg border-t-4 border-blue-500">
-          <Users className="w-6 h-6 text-blue-500 mb-3" />
-          <p className="text-sm text-slate-600">Active Streams</p>
-          <h2 className="text-3xl font-semibold mt-2">
-            {activeStreams}
-          </h2>
-        </div>
-
-        <div className="rounded-xl p-6 bg-white/70 backdrop-blur-md shadow-lg border-t-4 border-emerald-500">
-          <Wallet className="w-6 h-6 text-emerald-500 mb-3" />
-          <p className="text-sm text-slate-600">Total Net Payout</p>
-          <h2 className="text-3xl font-semibold mt-2">
-            ₹ {totalPayroll.toLocaleString()}
-          </h2>
-        </div>
-
-        <div className="rounded-xl p-6 bg-white/70 backdrop-blur-md shadow-lg border-t-4 border-orange-500">
-          <Calendar className="w-6 h-6 text-orange-500 mb-3" />
-          <p className="text-sm text-slate-600">Next Payroll Date</p>
-          <h2 className="text-3xl font-semibold mt-2">
-            30 March 2026
-          </h2>
-        </div>
-
+      <div className="mb-8 rounded-[30px] border border-white/70 bg-white/80 p-7 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-md">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Overview</p>
+        <h2 className="mt-2 text-3xl font-semibold text-slate-900">Payroll command center</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+          Track active salary flows, monitor cumulative payouts, and quickly spot your highest-paid team members.
+        </p>
       </div>
 
-      {/* Top Earners Pie Chart */}
-      <div className="bg-white/70 backdrop-blur-md rounded-xl shadow-lg p-8">
-        <h3 className="text-lg font-semibold mb-6">
-          Top Earners
-        </h3>
+      <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div className="rounded-[28px] border border-blue-100 bg-white/85 p-6 shadow-[0_18px_45px_rgba(37,99,235,0.08)] backdrop-blur-md">
+          <Users className="mb-3 h-6 w-6 text-blue-500" />
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Active Streams</p>
+          <h2 className="mt-2 text-3xl font-semibold text-slate-900">{activeStreams}</h2>
+          <p className="mt-2 text-sm text-slate-500">Employees currently marked as receiving active payroll flow.</p>
+        </div>
+
+        <div className="rounded-[28px] border border-emerald-100 bg-white/85 p-6 shadow-[0_18px_45px_rgba(16,185,129,0.08)] backdrop-blur-md">
+          <Wallet className="mb-3 h-6 w-6 text-emerald-500" />
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Total Net Payout</p>
+          <h2 className="mt-2 text-3xl font-semibold text-slate-900">Rs {totalPayroll.toLocaleString()}</h2>
+          <p className="mt-2 text-sm text-slate-500">Cumulative salary paid after tax deductions.</p>
+        </div>
+
+        <div className="rounded-[28px] border border-orange-100 bg-white/85 p-6 shadow-[0_18px_45px_rgba(249,115,22,0.08)] backdrop-blur-md">
+          <Calendar className="mb-3 h-6 w-6 text-orange-500" />
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500">Next Payroll Date</p>
+          <h2 className="mt-2 text-3xl font-semibold text-slate-900">30 March 2026</h2>
+          <p className="mt-2 text-sm text-slate-500">Use this as the next review point for treasury readiness.</p>
+        </div>
+      </div>
+
+      <div className="rounded-[30px] border border-white/70 bg-white/80 p-8 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur-md">
+        <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Distribution</p>
+            <h3 className="text-xl font-semibold text-slate-900">Top Earners</h3>
+          </div>
+          <p className="text-sm text-slate-500">Quick view of who is receiving the largest net payouts.</p>
+        </div>
 
         {topEarners.length === 0 ? (
           <p className="text-slate-500">No payout data yet</p>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={320}>
             <PieChart>
               <Pie
                 data={topEarners}
                 dataKey="value"
                 nameKey="name"
-                outerRadius={110}
-                innerRadius={60}
+                outerRadius={115}
+                innerRadius={68}
               >
                 {topEarners.map((_, index) => (
-                  <Cell
-                    key={index}
-                    fill={COLORS[index % COLORS.length]}
-                  />
+                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip />

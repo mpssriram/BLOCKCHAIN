@@ -65,6 +65,22 @@ export function logout() {
   window.location.href = "/"; // redirect to frontpage
 }
 
+export function getAuthRole(): string | null {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const base64Url = token.split(".")[1] || "";
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const payload = JSON.parse(atob(padded));
+    return typeof payload?.role === "string" ? payload.role : null;
+  } catch {
+    localStorage.removeItem("token");
+    return null;
+  }
+}
+
 /* =========================
    EMPLOYEES
 ========================= */
@@ -110,6 +126,10 @@ export async function pauseStream(id: number) {
 
 export async function startStream(id: number) {
   return apiRequest(`/api/stream/start/${id}`, { method: "POST" });
+}
+
+export async function cancelStream(id: number) {
+  return apiRequest(`/api/stream/cancel/${id}`, { method: "POST" });
 }
 
 /* =========================

@@ -1,6 +1,6 @@
 """
 API routes for employer dashboard: employees, transactions, bonuses, treasury, dashboard, settings.
-All routes require JWT authentication (employer role).
+All dashboard routes require JWT authentication (admin or employer role).
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -58,7 +58,7 @@ router = APIRouter()
 @router.get("/employees/", response_model=List[EmployeeResponse])
 def list_employees(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     employees = session.query(Employee).all()
     return [
@@ -81,7 +81,7 @@ def list_employees(
 def create_employee(
     data: EmployeeCreate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     try:
         emp = EmployeeService.create_employee(
@@ -106,7 +106,7 @@ def create_employee(
 def get_employee(
     employee_id: int,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     emp = EmployeeService.get_employee(session, employee_id)
     if not emp:
@@ -139,7 +139,7 @@ def get_employee(
 def get_employee_transactions(
     employee_id: int,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     emp = EmployeeService.get_employee(session, employee_id)
     if not emp:
@@ -162,7 +162,7 @@ def update_employee_wallet(
     employee_id: int,
     data: EmployeeWalletUpdate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     """Set employee's on-chain wallet address (for CorePayroll)."""
     emp = EmployeeService.get_employee(session, employee_id)
@@ -179,7 +179,7 @@ def update_employee_tax(
     employee_id: int,
     data: EmployeeTaxUpdate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     emp = EmployeeService.get_employee(session, employee_id)
     if not emp:
@@ -199,7 +199,7 @@ def update_employee_tax(
 def start_stream(
     employee_id: int,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return StreamingService.start_stream(session, employee_id)
 
@@ -208,16 +208,25 @@ def start_stream(
 def pause_stream(
     employee_id: int,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return StreamingService.pause_stream(session, employee_id)
+
+
+@router.post("/stream/cancel/{employee_id}")
+def cancel_stream(
+    employee_id: int,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    return StreamingService.cancel_stream(session, employee_id)
 
 
 @router.post("/stream/status", response_model=BlockchainTxResponse)
 def upsert_stream_tx_status(
     data: BlockchainTxCreate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     tx_hash = (data.tx_hash or "").strip()
     if not tx_hash.startswith("0x"):
@@ -239,7 +248,7 @@ def upsert_stream_tx_status(
 def get_stream_tx_status(
     tx_hash: str,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     tx_hash = (tx_hash or "").strip()
     tx = BlockchainTxService.get_tx(session, tx_hash=tx_hash)
@@ -258,7 +267,7 @@ def update_stream_tx_status(
     tx_hash: str,
     data: BlockchainTxUpdate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     tx_hash = (tx_hash or "").strip()
     status_val = (data.status or "").strip()
@@ -281,7 +290,7 @@ def update_stream_tx_status(
 def create_transaction(
     data: TransactionCreate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     try:
         tx = TransactionService.create_transaction(
@@ -313,7 +322,7 @@ def give_bonus(
     employee_id: int,
     data: BonusCreate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     try:
         bonus = BonusService.give_bonus(
@@ -342,7 +351,7 @@ def give_bonus(
 @router.get("/treasury")
 def get_treasury(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     treasury = TreasuryService.get_or_create(session)
     return {
@@ -358,7 +367,7 @@ def get_treasury(
 def deposit_treasury(
     data: TreasuryAction,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     try:
         treasury = TreasuryService.deposit_web2(session, float(data.amount))
@@ -375,7 +384,7 @@ def deposit_treasury(
 def withdraw_treasury(
     data: TreasuryAction,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     try:
         treasury = TreasuryService.withdraw_web2(session, float(data.amount))
@@ -395,7 +404,7 @@ def withdraw_treasury(
 @router.get("/dashboard/total-payout")
 def total_payout(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return DashboardService.total_payout(session)
 
@@ -403,7 +412,7 @@ def total_payout(
 @router.get("/dashboard/total-tax")
 def total_tax(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return DashboardService.total_tax_collected(session)
 
@@ -411,7 +420,7 @@ def total_tax(
 @router.get("/dashboard/active-streams")
 def active_streams(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return DashboardService.active_streams(session)
 
@@ -419,7 +428,7 @@ def active_streams(
 @router.get("/dashboard/top-earners")
 def top_earners(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return DashboardService.top_earners(session)
 
@@ -427,7 +436,7 @@ def top_earners(
 @router.get("/dashboard/monthly-summary")
 def monthly_summary(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return DashboardService.monthly_summary(session)
 
@@ -439,7 +448,7 @@ def monthly_summary(
 @router.get("/settings/company-tax", response_model=CompanySettingsResponse)
 def get_company_tax(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     settings = session.query(CompanySettings).first()
     if not settings:
@@ -454,7 +463,7 @@ def get_company_tax(
 def update_company_tax(
     data: CompanySettingsUpdate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     settings = session.query(CompanySettings).first()
     if not settings:
@@ -470,7 +479,7 @@ def update_company_tax(
 @router.get("/settings/tax-slabs", response_model=List[TaxSlabResponse])
 def get_tax_slabs(
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     slabs = session.query(TaxSlab).all()
     return [
@@ -488,7 +497,7 @@ def get_tax_slabs(
 def create_tax_slab(
     data: TaxSlabCreate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     slab = TaxSlab(
         min_income=data.min_income,
@@ -510,7 +519,7 @@ def create_tax_slab(
 def delete_tax_slab(
     slab_id: int,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.require_employer),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     slab = session.query(TaxSlab).filter(TaxSlab.id == slab_id).first()
     if not slab:
@@ -575,6 +584,7 @@ def get_my_profile(
             "email": emp.email,
             "role": emp.role,
             "is_streaming": emp.is_streaming,
+            "wallet_address": emp.wallet_address,
         },
         "total_earned": float(total_earned),
     }

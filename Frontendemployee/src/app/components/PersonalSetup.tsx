@@ -1,49 +1,28 @@
-import { User, Mail, Phone, MapPin, Briefcase, Calendar, Save, Edit2 } from 'lucide-react';
-import { useState } from 'react';
+import { User, Mail, Briefcase, Calendar } from 'lucide-react';
 
 interface PersonalSetupProps {
   profile: any;
-  conversionRate: number;
-  setConversionRate: (val: number) => void;
 }
 
-export function PersonalSetup({ profile, conversionRate, setConversionRate }: PersonalSetupProps) {
-  const [isEditing, setIsEditing] = useState(false);
-
+export function PersonalSetup({ profile }: PersonalSetupProps) {
   const emp = profile?.employee;
   const userDetails = {
     name: emp?.name || 'User',
-    email: profile?.email || '—',
-    phone: '+91 98765 43210',             // Optional: still mock as DB lacks these fields
-    address: 'Mumbai, MH, India',        // Optional: still mock as DB lacks these fields
+    email: profile?.email || '--',
     position: (emp?.role || 'Employee').charAt(0).toUpperCase() + (emp?.role || 'Employee').slice(1),
     joinDate: 'March 1, 2026',
-    employeeId: emp?.id ? `EMP-2026-${emp.id.toString().padStart(3, '0')}` : '—',
-    department: 'Engineering',
+    employeeId: emp?.id ? `EMP-2026-${emp.id.toString().padStart(3, '0')}` : '--',
+    streamStatus: emp?.is_streaming ? 'Active' : 'Paused',
   };
 
   return (
     <div className="space-y-6">
-      {/* Personal Details Card */}
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">Personal Details</h3>
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            {isEditing ? (
-              <>
-                <Save className="w-4 h-4" />
-                Save
-              </>
-            ) : (
-              <>
-                <Edit2 className="w-4 h-4" />
-                Edit
-              </>
-            )}
-          </button>
+        <div className="mb-6">
+          <h3 className="text-xl font-semibold text-gray-900">Profile Snapshot</h3>
+          <p className="mt-2 text-sm text-gray-500">
+            Showing the fields currently backed by your account data.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -64,26 +43,6 @@ export function PersonalSetup({ profile, conversionRate, setConversionRate }: Pe
             <div>
               <p className="text-sm text-gray-600 mb-1">Email Address</p>
               <p className="text-gray-900 font-medium">{userDetails.email}</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Phone className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Phone Number</p>
-              <p className="text-gray-900 font-medium">{userDetails.phone}</p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-orange-100 rounded-lg">
-              <MapPin className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Address</p>
-              <p className="text-gray-900 font-medium">{userDetails.address}</p>
             </div>
           </div>
 
@@ -114,48 +73,9 @@ export function PersonalSetup({ profile, conversionRate, setConversionRate }: Pe
             <p className="text-lg font-semibold text-purple-900">{userDetails.employeeId}</p>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg">
-            <p className="text-sm text-purple-600 mb-1">Department</p>
-            <p className="text-lg font-semibold text-purple-900">{userDetails.department}</p>
+            <p className="text-sm text-purple-600 mb-1">Stream Status</p>
+            <p className="text-lg font-semibold text-purple-900">{userDetails.streamStatus}</p>
           </div>
-        </div>
-      </div>
-
-      {/* Conversion Amount Card */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Conversion Settings</h3>
-        <p className="text-gray-600 mb-6">Set your preferred currency conversion rate for international transactions</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Base Currency
-            </label>
-            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
-              <option>INR - Indian Rupee</option>
-              <option>USD - US Dollar</option>
-              <option>EUR - Euro</option>
-              <option>GBP - British Pound</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Conversion Rate (to USD)
-            </label>
-            <input
-              type="number"
-              value={conversionRate}
-              onChange={(e) => setConversionRate(parseFloat(e.target.value))}
-              step="0.001"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-        </div>
-
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Note:</strong> Current conversion rate: ₹1 = ${conversionRate.toFixed(3)} USD
-          </p>
         </div>
       </div>
     </div>

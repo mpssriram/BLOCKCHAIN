@@ -1,28 +1,29 @@
+from decimal import Decimal
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-import os
-from decimal import Decimal
 
-from database import db
-from models import User, Employee, Treasury, CompanySettings
-from security import SecurityService
-from auth import router as auth_router
 from api_routes import router as api_router
+from auth import router as auth_router
 from blockchain_routes import router as blockchain_router
+from config import settings
+from database import db
+from models import CompanySettings, Employee, Treasury, User
+from security import SecurityService
 
 app = FastAPI()
 
-# -----------------------
-# CORS
-# -----------------------
-# Set ALLOWED_ORIGINS in your environment (comma-separated) to restrict access.
-# Example: ALLOWED_ORIGINS=https://myfrontend.vercel.app,https://myemployee.vercel.app
-# Leave unset (or "*") to allow all origins (fine for development).
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "*")
-ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",")] if _raw_origins != "*" else ["*"]
+
+def get_allowed_origins() -> list[str]:
+    raw_origins = settings.ALLOWED_ORIGINS or os.environ.get("ALLOWED_ORIGINS", "*")
+    return [o.strip() for o in raw_origins.split(",")] if raw_origins != "*" else ["*"]
+
+
+ALLOWED_ORIGINS = get_allowed_origins()
 ALLOW_CREDENTIALS = ALLOWED_ORIGINS != ["*"]
 
 app.add_middleware(
@@ -33,110 +34,123 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -----------------------
-# Database Seed
-# -----------------------
-@app.on_event("startup")
-def startup():
-    # NOTE: On Vercel serverless this runs on every cold start.
-    # All DB operations below are idempotent (check-before-insert), so this is safe.
-    db.create_tables()
-    # Add wallet_address to employees if missing (migration)
+
+def ensure_wallet_address_column() -> None:
     try:
         from sqlalchemy import text
+
         with db.engine.connect() as conn:
             conn.execute(text("ALTER TABLE employees ADD COLUMN wallet_address VARCHAR(42)"))
             conn.commit()
     except Exception:
-        pass  # Column may already exist or unsupported DB
-    session: Session = db.SessionLocal()
+        pass
 
-    # Seed test users (employee + employer)
+
+def seed_demo_data(session: Session) -> None:
     if not session.query(User).filter(User.email == "employee@test.com").first():
-        session.add(User(
-            email="employee@test.com",
-            hashed_password=SecurityService.hash_password("123456"),
-            role="employee"
-        ))
+        session.add(
+            User(
+                email="employee@test.com",
+                hashed_password=SecurityService.hash_password("123456"),
+                role="employee",
+            )
+        )
         session.commit()
-        print("✅ Test employee user created")
+        print("Test employee user created")
+
     if not session.query(User).filter(User.email == "employer@test.com").first():
-        session.add(User(
-            email="employer@test.com",
-            hashed_password=SecurityService.hash_password("123456"),
-            role="employer"
-        ))
+        session.add(
+            User(
+                email="employer@test.com",
+                hashed_password=SecurityService.hash_password("123456"),
+                role="employer",
+            )
+        )
         session.commit()
-        print("✅ Test employer user created")
-    # Demo users (for screenshots and public testing)
+        print("Test employer user created")
+
     if not session.query(User).filter(User.email == "employee@krackheads.com").first():
-        session.add(User(
-            email="employee@krackheads.com",
-            hashed_password=SecurityService.hash_password("employee123"),
-            role="employee"
-        ))
+        session.add(
+            User(
+                email="employee@krackheads.com",
+                hashed_password=SecurityService.hash_password("employee123"),
+                role="employee",
+            )
+        )
         session.commit()
-        print("✅ Demo employee user created (employee@krackheads.com / employee123)")
+        print("Demo employee user created")
+
     if not session.query(User).filter(User.email == "admin@krackheads.com").first():
-        session.add(User(
-            email="admin@krackheads.com",
-            hashed_password=SecurityService.hash_password("admin123"),
-            role="employer"
-        ))
+        session.add(
+            User(
+                email="admin@krackheads.com",
+                hashed_password=SecurityService.hash_password("admin123"),
+                role="admin",
+            )
+        )
         session.commit()
-        print("✅ Demo employer user created (admin@krackheads.com / admin123)")
+        print("Demo admin user created")
 
-    # Seed test employee
-    if not session.query(Employee).first():
-        session.add(Employee(
-            name="Test Employee",
-            email="employee@test.com",
-            role="Developer",
-            is_streaming=True
-        ))
+    if not session.query(Employee).filter(Employee.email == "employee@test.com").first():
+        session.add(
+            Employee(
+                name="Test Employee",
+                email="employee@test.com",
+                role="Developer",
+                is_streaming=True,
+            )
+        )
         session.commit()
-        print("✅ Test employee created")
-    # Ensure demo employee record exists
+        print("Test employee created")
+
     if not session.query(Employee).filter(Employee.email == "employee@krackheads.com").first():
-        session.add(Employee(
-            name="Demo Employee",
-            email="employee@krackheads.com",
-            role="Developer",
-            is_streaming=True
-        ))
+        session.add(
+            Employee(
+                name="Demo Employee",
+                email="employee@krackheads.com",
+                role="Developer",
+                is_streaming=True,
+            )
+        )
         session.commit()
-        print("✅ Demo employee created")
+        print("Demo employee created")
 
-    # Seed treasury
-    if not session.query(Treasury).first():
-        session.add(Treasury(
-            total_balance=Decimal("100000.00"),
-            onchain_balance=Decimal("50000.00")
-        ))
-        session.commit()
-        print("✅ Treasury initialized")
 
-    # Seed company settings (for tax)
-    if not session.query(CompanySettings).first():
-        session.add(CompanySettings(default_tax_rate=Decimal("10.00")))
-        session.commit()
-        print("✅ Company settings initialized")
+@app.on_event("startup")
+def startup() -> None:
+    db.create_tables()
+    ensure_wallet_address_column()
 
-    session.close()
-    print("✅ Startup complete")
+    session: Session = db.SessionLocal()
+    try:
+        if settings.ENABLE_DEMO_SEED:
+            seed_demo_data(session)
 
-# -----------------------
-# API Routes
-# -----------------------
+        if not session.query(Treasury).first():
+            session.add(
+                Treasury(
+                    total_balance=Decimal("100000.00"),
+                    onchain_balance=Decimal("50000.00"),
+                )
+            )
+            session.commit()
+            print("Treasury initialized")
+
+        if not session.query(CompanySettings).first():
+            session.add(CompanySettings(default_tax_rate=Decimal("10.00")))
+            session.commit()
+            print("Company settings initialized")
+    finally:
+        session.close()
+
+    print("Startup complete")
+
+
 app.include_router(auth_router, prefix="/api")
 app.include_router(api_router, prefix="/api")
 app.include_router(blockchain_router, prefix="/api")
 
-# -----------------------
-# Frontend static file serving (local/self-hosted mode only)
-# -----------------------
-# On Vercel, the two frontends are deployed as separate projects.
-# Static serving is skipped automatically when the dist/ folders don't exist.
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTPAGE_PATH = os.path.join(BASE_DIR, "frontpage", "dist")
 EMPLOYEE_PATH = os.path.join(BASE_DIR, "Frontendemployee", "dist")
@@ -186,12 +200,3 @@ def catch_frontpage(full_path: str):
     if os.path.exists(index):
         return FileResponse(index)
     return {"detail": "Not Found"}
-
-
-
-
-
-
-
-
-

@@ -3,7 +3,7 @@
  *
  * BUGS FIXED:
  *  1. Used `init()` (Wallet Services SDK) instead of `initModal()` (Modal SDK)
- *  2. Missing `chainConfig` in Web3Auth constructor — network was never set
+ *  2. Missing `chainConfig` in Web3Auth constructor - network was never set
  *  3. Added `reconnect()` to restore an existing session without showing the modal
  */
 
@@ -109,7 +109,7 @@ export function isConnected(): boolean {
   return !!signer && !!payrollContract;
 }
 
-/** Returns existing contract — use this instead of loginAndConnectContract for read calls */
+/** Returns existing contract - use this instead of loginAndConnectContract for read calls */
 export function getPayrollContract(): ethers.Contract | null {
   return payrollContract;
 }
@@ -127,21 +127,39 @@ export async function getConnectedAddress(): Promise<string | null> {
   }
 }
 
+function isChainMissingError(error: any) {
+  return error?.code === 4902 || /4902|unknown chain|unrecognized chain/i.test(String(error?.message || ""));
+}
+
 export async function ensureHeLaNetwork(ethereum: any) {
   try {
     const chainId = await ethereum.request?.({ method: "eth_chainId" });
     if (chainId?.toLowerCase() !== HELA_CHAIN_CONFIG.chainId.toLowerCase()) {
-      await ethereum.request?.({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId: HELA_CHAIN_CONFIG.chainId,
-          chainName: HELA_CHAIN_CONFIG.displayName,
-          rpcUrls: [HELA_CHAIN_CONFIG.rpcTarget],
-          nativeCurrency: { name: HELA_CHAIN_CONFIG.tickerName, symbol: HELA_CHAIN_CONFIG.ticker, decimals: 18 },
-        }],
-      });
+      try {
+        await ethereum.request?.({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: HELA_CHAIN_CONFIG.chainId }],
+        });
+      } catch (switchError: any) {
+        if (!isChainMissingError(switchError)) throw switchError;
+
+        await ethereum.request?.({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: HELA_CHAIN_CONFIG.chainId,
+            chainName: HELA_CHAIN_CONFIG.displayName,
+            rpcUrls: [HELA_CHAIN_CONFIG.rpcTarget],
+            blockExplorerUrls: [HELA_CHAIN_CONFIG.blockExplorerUrl],
+            nativeCurrency: {
+              name: HELA_CHAIN_CONFIG.tickerName,
+              symbol: HELA_CHAIN_CONFIG.ticker,
+              decimals: 18,
+            },
+          }],
+        });
+      }
     }
   } catch {
-    // ignore — network switch failure is non-fatal
+    // ignore - network switch failure is non-fatal
   }
 }

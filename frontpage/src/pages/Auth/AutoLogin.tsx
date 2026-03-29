@@ -12,15 +12,16 @@ export default function AutoLogin() {
     const destParam = params.get("dest");
     const employerDest = "/employer-dashboard/overview";
     const employeeDest = "/employee";
-    const dest = destParam || (role === "employer" ? employerDest : employeeDest);
+    const isDashboardRole = role === "employer" || role === "admin";
+    const dest = destParam || (isDashboardRole ? employerDest : employeeDest);
 
     const demoEmployerEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL || "employer@test.com";
     const demoEmployerPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD || "123456";
     const demoEmployeeEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL || "employee@test.com";
     const demoEmployeePassword = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_PASSWORD || "123456";
 
-    const email = role === "employer" ? demoEmployerEmail : demoEmployeeEmail;
-    const password = role === "employer" ? demoEmployerPassword : demoEmployeePassword;
+    const email = isDashboardRole ? demoEmployerEmail : demoEmployeeEmail;
+    const password = isDashboardRole ? demoEmployerPassword : demoEmployeePassword;
 
     if (!email || !password) {
       setStatus("Demo credentials not configured");

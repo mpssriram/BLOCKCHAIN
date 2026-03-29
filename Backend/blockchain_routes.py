@@ -11,11 +11,18 @@ router = APIRouter()
 
 # CorePayroll ABI subset for frontend use
 CORE_PAYROLL_ABI = [
+    "function admin() view returns (address)",
+    "function employer() view returns (address)",
     "function getTreasuryBalance() view returns (uint256)",
     "function startStream(address _employee, uint256 _ratePerSecond) external",
     "function stopStream(address _employee) external",
+    "function cancelStream(address _employee) external",
+    "function setEmployer(address _newEmployer) external",
     "function claimableAmount(address _employee) view returns (uint256)",
+    "function streams(address _employee) view returns (uint256 ratePerSecond, uint256 lastWithdrawTime, uint256 accruedBalance, bool isActive)",
     "function withdraw() external",
+    "function taxVault() view returns (address)",
+    "function TAX_RATE() view returns (uint256)",
     "function emergencyWithdraw() external",
     "receive() external payable",
 ]

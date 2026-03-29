@@ -18,7 +18,8 @@ contract CorePayroll {
     mapping(address => Stream) public streams;
 
     event StreamStarted(address indexed employee, uint256 rate);
-    event StreamStopped(address indexed employee);
+    event StreamPaused(address indexed employee, uint256 accruedBalance);
+    event StreamCancelled(address indexed employee, uint256 accruedBalance);
     event Withdrawal(address indexed employee, uint256 netAmount, uint256 taxAmount);
     event TreasuryFunded(uint256 amount);
     event EmergencyWithdrawal(uint256 amountRecovered); // <-- NEW EVENT
@@ -43,6 +44,8 @@ contract CorePayroll {
     }
 
     function startStream(address _employee, uint256 _ratePerSecond) external onlyEmployer {
+        require(_employee != address(0), "Invalid employee");
+        require(_ratePerSecond > 0, "Rate must be greater than 0");
         Stream storage s = streams[_employee];
         
         // SAFETY NET: Save pending earnings before updating
@@ -59,6 +62,7 @@ contract CorePayroll {
     }
 
     function stopStream(address _employee) external onlyEmployer {
+        require(_employee != address(0), "Invalid employee");
         Stream storage s = streams[_employee];
         require(s.isActive, "Stream is already inactive");
         
@@ -67,7 +71,25 @@ contract CorePayroll {
         s.accruedBalance += timeElapsed * s.ratePerSecond;
         
         s.isActive = false;
-        emit StreamStopped(_employee);
+        emit StreamPaused(_employee, s.accruedBalance);
+    }
+
+    function cancelStream(address _employee) external onlyEmployer {
+        require(_employee != address(0), "Invalid employee");
+        Stream storage s = streams[_employee];
+
+        if (s.isActive) {
+            uint256 timeElapsed = block.timestamp - s.lastWithdrawTime;
+            s.accruedBalance += timeElapsed * s.ratePerSecond;
+        }
+
+        require(s.ratePerSecond > 0 || s.accruedBalance > 0, "Stream is not configured");
+
+        s.isActive = false;
+        s.ratePerSecond = 0;
+        s.lastWithdrawTime = block.timestamp;
+
+        emit StreamCancelled(_employee, s.accruedBalance);
     }
 
     // -- EMPLOYEE PORTAL FUNCTIONS --

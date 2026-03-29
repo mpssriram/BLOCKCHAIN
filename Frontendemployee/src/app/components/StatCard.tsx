@@ -10,14 +10,14 @@ interface StatCardProps {
 
 export function StatCard({ icon, title, value, subtitle, iconBg = 'bg-blue-400' }: StatCardProps) {
   return (
-    <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
-      <div className="flex items-start justify-between">
+    <div className="rounded-[28px] border border-slate-200/70 bg-white/92 p-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
-          <p className="text-gray-600 text-sm mb-2">{title}</p>
-          <p className="text-3xl font-semibold text-gray-900 mb-1">{value}</p>
-          {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">{title}</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-900">{value}</p>
+          {subtitle && <p className="mt-2 text-sm leading-6 text-slate-500">{subtitle}</p>}
         </div>
-        <div className={`${iconBg} p-3 rounded-xl text-white`}>
+        <div className={`${iconBg} rounded-2xl p-3 text-white shadow-lg`}>
           {icon}
         </div>
       </div>

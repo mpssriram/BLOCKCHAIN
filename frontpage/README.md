@@ -1,11 +1,17 @@
+# PayStream HR Frontend
 
-  # Clone Sablier Webpage
+Employer / HR dashboard for:
 
-  This is a code bundle for Clone Sablier Webpage. The original project is available at https://www.figma.com/design/6pVEbFoArKf1d7fUAQVoBu/Clone-Sablier-Webpage.
+- treasury visibility
+- employee stream management
+- HeLa wallet connectivity
+- start / pause / cancel of on-chain payroll streams
 
-  ## Running the code
+Run locally:
 
-  Run `npm i` to install the dependencies.
+```bash
+npm install
+npm run dev
+```
 
-  Run `npm run dev` to start the development server.
-  
+For full setup, use the root project README.

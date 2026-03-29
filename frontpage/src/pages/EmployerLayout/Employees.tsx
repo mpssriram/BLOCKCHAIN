@@ -158,10 +158,10 @@ function Employees() {
                 Role
               </th>
               <th className="p-4 text-sm font-semibold text-slate-600">
-                Salary
+                Wallet
               </th>
               <th className="p-4 text-sm font-semibold text-slate-600">
-                Status
+                Stream
               </th>
             </tr>
           </thead>
@@ -186,7 +186,9 @@ function Employees() {
                 </td>
 
                 <td className="p-4 text-slate-600">
-                  —
+                  {emp.wallet_address
+                    ? `${emp.wallet_address.slice(0, 8)}...${emp.wallet_address.slice(-6)}`
+                    : "Not linked"}
                 </td>
 
                 <td className="p-4">
@@ -197,7 +199,7 @@ function Employees() {
                         : "bg-red-100 text-red-700"
                     }`}
                   >
-                    {emp.is_streaming ? "Active" : "Paused"}
+                    {emp.is_streaming ? "Active" : "Not active"}
                   </span>
                 </td>
               </tr>

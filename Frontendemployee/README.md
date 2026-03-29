@@ -1,11 +1,17 @@
+# PayStream Employee Frontend
 
-  # Employee Dashboard Design
+Employee portal for:
 
-  This is a code bundle for Employee Dashboard Design. The original project is available at https://www.figma.com/design/EEHaZ1MyOC5ccJqlX6YxAP/Employee-Dashboard-Design.
+- wallet linking
+- stream status visibility
+- claimable HLUSD preview
+- withdrawal from the payroll contract
 
-  ## Running the code
+Run locally:
 
-  Run `npm i` to install the dependencies.
+```bash
+npm install
+npm run dev
+```
 
-  Run `npm run dev` to start the development server.
-  
+For full setup, use the root project README.

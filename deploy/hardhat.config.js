@@ -1,3 +1,7 @@
+require("@nomicfoundation/hardhat-ethers");
+
+const helaChainId = Number(process.env.HELA_CHAIN_ID || 666888);
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
@@ -9,7 +13,7 @@ module.exports = {
   networks: {
     hela: {
       url: process.env.HELA_RPC_URL || "https://testnet-rpc.helachain.com",
-      chainId: 666888,
+      chainId: helaChainId,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     localhost: {

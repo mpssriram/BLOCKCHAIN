@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Play, PauseCircle } from "lucide-react";
-import { getEmployee, startStream, pauseStream, createTransaction, getBlockchainConfig, updateEmployeeWallet } from "../../../app/api";
+import { ExternalLink, PauseCircle, Play, SquareX } from "lucide-react";
+import { cancelStream, getBlockchainConfig, getEmployee, pauseStream, startStream, updateEmployeeWallet } from "../../../app/api";
 import { loginAndConnectContract } from "../../../blockchain/web3Auth";
-import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "../../../blockchain/config";
+import { CORE_PAYROLL_ABI, HELA_CHAIN_CONFIG } from "../../../blockchain/config";
 import { ethers } from "ethers";
+
+type StreamDetails = {
+  ratePerSecond?: string;
+  lastWithdrawTime?: number;
+  accruedBalance?: string;
+  isActive?: boolean;
+};
 
 export default function EmployeeDetails() {
   const { id } = useParams();
@@ -12,91 +19,123 @@ export default function EmployeeDetails() {
 
   const [employee, setEmployee] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [salaryAmount, setSalaryAmount] = useState("");
-  const [salaryDesc, setSalaryDesc] = useState("");
-  const [payLoading, setPayLoading] = useState(false);
   const [contractAddress, setContractAddress] = useState<string | null>(null);
   const [onChainLoading, setOnChainLoading] = useState(false);
   const [ratePerSecond, setRatePerSecond] = useState("");
-  const [streamDetails, setStreamDetails] = useState<{
-    ratePerSecond?: string;
-    lastWithdrawTime?: number;
-    accruedBalance?: string;
-    isActive?: boolean;
-  } | null>(null);
+  const [streamDetails, setStreamDetails] = useState<StreamDetails | null>(null);
+  const [claimableWei, setClaimableWei] = useState<string | null>(null);
+
+  const HELA_EXPLORER_ADDRESS = (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS || "";
 
   useEffect(() => {
     if (!id) return;
-    getEmployee(Number(id))
-      .then(setEmployee)
-      .catch(() => setEmployee(null));
-    getBlockchainConfig().then((cfg: any) => cfg?.contract_address && setContractAddress(cfg.contract_address));
+    loadEmployee(Number(id));
+    getBlockchainConfig().then((cfg: any) => {
+      const addr = (cfg?.contract_address || "").trim();
+      if (addr) setContractAddress(addr);
+    });
   }, [id]);
 
-  const handleActivate = async () => {
-    if (!id) return;
-    setLoading(true);
+  async function loadEmployee(employeeId: number) {
     try {
-      const data = await startStream(Number(id));
-      setEmployee((prev: any) => ({ ...prev, is_streaming: data.is_streaming }));
+      const data = await getEmployee(employeeId);
+      setEmployee(data);
     } catch {
-      alert("Activate failed");
-    } finally {
-      setLoading(false);
+      setEmployee(null);
     }
-  };
+  }
 
-  const handlePause = async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const data = await pauseStream(Number(id));
-      setEmployee((prev: any) => ({ ...prev, is_streaming: data.is_streaming }));
-    } catch {
-      alert("Pause failed");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    async function loadStreamDetails() {
+      if (!contractAddress || !employee?.wallet_address) {
+        setStreamDetails(null);
+        setClaimableWei(null);
+        return;
+      }
+
+      try {
+        const provider = new ethers.JsonRpcProvider(HELA_CHAIN_CONFIG.rpcTarget);
+        const roContract = new ethers.Contract(contractAddress, CORE_PAYROLL_ABI, provider);
+        const [stream, claimable] = await Promise.all([
+          roContract.streams(employee.wallet_address),
+          roContract.claimableAmount(employee.wallet_address),
+        ]);
+
+        setStreamDetails({
+          ratePerSecond:
+            (stream.ratePerSecond && stream.ratePerSecond.toString?.()) || (stream[0] && stream[0].toString?.()),
+          lastWithdrawTime:
+            (typeof stream.lastWithdrawTime === "bigint" ? Number(stream.lastWithdrawTime) : stream[1] ? Number(stream[1]) : undefined),
+          accruedBalance:
+            (stream.accruedBalance && stream.accruedBalance.toString?.()) || (stream[2] && stream[2].toString?.()),
+          isActive:
+            typeof stream.isActive === "boolean" ? stream.isActive : typeof stream[3] === "boolean" ? stream[3] : undefined,
+        });
+        setClaimableWei(claimable.toString());
+      } catch {
+        setStreamDetails(null);
+        setClaimableWei(null);
+      }
     }
-  };
 
-  const handleLinkWallet = async () => {
+    loadStreamDetails();
+  }, [contractAddress, employee?.wallet_address, employee?.is_streaming]);
+
+  const streamStatus = useMemo(() => {
+    if (!streamDetails) return employee?.is_streaming ? "Active" : "Not started";
+    const active = !!streamDetails.isActive;
+    const rate = streamDetails.ratePerSecond || "0";
+    const hasRate = rate !== "0";
+    const hasClaimable = !!claimableWei && claimableWei !== "0";
+
+    if (active) return "Active";
+    if (hasRate) return "Paused";
+    if (hasClaimable) return "Cancelled";
+    return "Not started";
+  }, [claimableWei, employee?.is_streaming, streamDetails]);
+
+  async function handleLinkWallet() {
     if (!id || !contractAddress) return;
     setOnChainLoading(true);
     try {
       const { address } = await loginAndConnectContract(contractAddress);
       await updateEmployeeWallet(Number(id), address);
-      const updated = await getEmployee(Number(id));
-      setEmployee(updated);
+      await loadEmployee(Number(id));
     } catch (err: any) {
       alert(err?.message || "Failed to link wallet");
     } finally {
       setOnChainLoading(false);
     }
-  };
+  }
 
-  const handleStartOnChainStream = async () => {
+  async function handleStartOnChainStream() {
     if (!id || !contractAddress || !employee?.wallet_address) {
-      alert("Employee must have wallet linked first");
+      alert("Employee must have a linked HeLa wallet first");
       return;
     }
-    const rate = ratePerSecond ? ethers.parseEther(ratePerSecond) : ethers.parseEther("0.0001");
+
+    const rate = ratePerSecond ? ethers.parseEther(ratePerSecond) : null;
+    if (!rate || rate <= 0n) {
+      alert("Enter a valid HLUSD per-second rate");
+      return;
+    }
+
     setOnChainLoading(true);
     try {
       const { contract } = await loginAndConnectContract(contractAddress);
       const tx = await contract.startStream(employee.wallet_address, rate);
       await tx.wait();
       await startStream(Number(id));
-      const updated = await getEmployee(Number(id));
-      setEmployee(updated);
+      await loadEmployee(Number(id));
       setRatePerSecond("");
     } catch (err: any) {
-      alert(err?.message || "Failed to start on-chain stream");
+      alert(err?.message || "Failed to start stream");
     } finally {
       setOnChainLoading(false);
     }
-  };
+  }
 
-  const handleStopOnChainStream = async () => {
+  async function handlePauseOnChainStream() {
     if (!id || !contractAddress || !employee?.wallet_address) return;
     setOnChainLoading(true);
     try {
@@ -104,242 +143,175 @@ export default function EmployeeDetails() {
       const tx = await contract.stopStream(employee.wallet_address);
       await tx.wait();
       await pauseStream(Number(id));
-      const updated = await getEmployee(Number(id));
-      setEmployee(updated);
+      await loadEmployee(Number(id));
     } catch (err: any) {
-      alert(err?.message || "Failed to stop on-chain stream");
+      alert(err?.message || "Failed to pause stream");
     } finally {
       setOnChainLoading(false);
     }
-  };
+  }
 
-  useEffect(() => {
-    async function loadStreamDetails() {
-      if (!contractAddress || !employee?.wallet_address) {
-        setStreamDetails(null);
-        return;
-      }
-      try {
-        const provider = new ethers.JsonRpcProvider(HELA_CHAIN_CONFIG.rpcTarget);
-        const roContract = new ethers.Contract(contractAddress, CORE_PAYROLL_ABI, provider);
-        const s = await roContract.streams(employee.wallet_address);
-        const details = {
-          ratePerSecond:
-            (s.ratePerSecond && s.ratePerSecond.toString?.()) || (s[0] && s[0].toString?.()),
-          lastWithdrawTime:
-            (typeof s.lastWithdrawTime === "bigint" ? Number(s.lastWithdrawTime) : s[1] ? Number(s[1]) : undefined),
-          accruedBalance:
-            (s.accruedBalance && s.accruedBalance.toString?.()) || (s[2] && s[2].toString?.()),
-          isActive:
-            typeof s.isActive === "boolean" ? s.isActive : typeof s[3] === "boolean" ? s[3] : undefined,
-        };
-        setStreamDetails(details);
-      } catch {
-        setStreamDetails(null);
-      }
+  async function handleCancelOnChainStream() {
+    if (!id || !contractAddress || !employee?.wallet_address) return;
+    if (!confirm("Cancel this stream? Accrued HLUSD stays claimable, but future streaming stops until HR starts a new stream.")) {
+      return;
     }
-    loadStreamDetails();
-  }, [contractAddress, employee?.wallet_address, employee?.is_streaming]);
 
-  const handlePaySalary = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !salaryAmount) return;
-    setPayLoading(true);
+    setOnChainLoading(true);
     try {
-      await createTransaction(Number(id), Number(salaryAmount), salaryDesc || "Salary payment");
-      setSalaryAmount("");
-      setSalaryDesc("");
-      const updated = await getEmployee(Number(id));
-      setEmployee(updated);
+      const { contract } = await loginAndConnectContract(contractAddress);
+      const tx = await contract.cancelStream(employee.wallet_address);
+      await tx.wait();
+      await cancelStream(Number(id));
+      await loadEmployee(Number(id));
     } catch (err: any) {
-      alert(err.message || "Payment failed");
+      alert(err?.message || "Failed to cancel stream");
     } finally {
-      setPayLoading(false);
+      setOnChainLoading(false);
     }
-  };
+  }
 
-  if (!employee) return <div className="p-10">Loading...</div>;
+  if (!employee) return <div className="p-10">Loading employee details...</div>;
 
   return (
     <div className="space-y-8 p-6">
-
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="text-blue-500 hover:underline"
+        className="text-blue-600 hover:underline"
       >
-        ← Back
+        Back to employees
       </button>
 
-      <div className="bg-white p-6 rounded-xl shadow-lg">
-        <h2 className="text-2xl font-semibold">
-          {employee.name}
-        </h2>
-
-        <p className="text-slate-600 mt-2">
-          Role: {employee.role}
-        </p>
-
-        {employee.wallet_address ? (
-          <p className="text-slate-500 text-sm mt-1">
-            Wallet: {employee.wallet_address.slice(0, 10)}...{employee.wallet_address.slice(-8)}
-          </p>
-        ) : contractAddress && (
-          <button
-            onClick={handleLinkWallet}
-            disabled={onChainLoading}
-            className="mt-2 px-4 py-1 text-sm bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 disabled:opacity-50"
-          >
-            {onChainLoading ? "Connecting..." : "Link Wallet (Web3Auth)"}
-          </button>
-        )}
-
-        <div className="mt-4 flex items-center gap-4">
-
+      <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-slate-900">{employee.name}</h2>
+            <p className="mt-2 text-sm text-slate-600">{employee.email}</p>
+            <p className="text-sm text-slate-600">Role: {employee.role}</p>
+          </div>
           <span
-            className={`px-4 py-1 rounded-full font-semibold ${employee.is_streaming
-                ? "bg-green-500 text-white"
-                : "bg-red-500 text-white"
-              }`}
+            className={`rounded-full px-4 py-2 text-sm font-semibold ${
+              streamStatus === "Active"
+                ? "bg-emerald-100 text-emerald-700"
+                : streamStatus === "Paused"
+                  ? "bg-amber-100 text-amber-700"
+                  : streamStatus === "Cancelled"
+                    ? "bg-rose-100 text-rose-700"
+                    : "bg-slate-100 text-slate-700"
+            }`}
           >
-            {employee.is_streaming ? "Active" : "Paused"}
+            {streamStatus}
           </span>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">HeLa Wallet</p>
+            {employee.wallet_address ? (
+              <>
+                <p className="mt-2 break-all text-sm font-medium text-slate-900">{employee.wallet_address}</p>
+                {HELA_EXPLORER_ADDRESS && (
+                  <a
+                    href={`${HELA_EXPLORER_ADDRESS}${employee.wallet_address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-700 hover:underline"
+                  >
+                    View wallet on explorer
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={handleLinkWallet}
+                disabled={onChainLoading}
+                className="mt-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {onChainLoading ? "Linking..." : "Link Wallet"}
+              </button>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Claimable</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">
+              {claimableWei ? `${Number(ethers.formatEther(claimableWei)).toFixed(6)} HLUSD` : "0 HLUSD"}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Accrued funds remain withdrawable even after a stream is cancelled.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex gap-6">
-        <button
-          type="button"
-          disabled={loading}
-          onClick={handleActivate}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-600 text-white disabled:opacity-50"
-        >
-          <Play size={18} />
-          Activate
-        </button>
+      {contractAddress && employee.wallet_address && (
+        <div className="rounded-[28px] border border-cyan-200 bg-cyan-50 p-6">
+          <h3 className="text-lg font-semibold text-slate-900">On-Chain Stream Controls</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Start a new stream or manage an existing one directly on HeLa.
+          </p>
 
-        <button
-          type="button"
-          disabled={loading}
-          onClick={handlePause}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-600 text-white disabled:opacity-50"
-        >
-          <PauseCircle size={18} />
-          Pause
-        </button>
-      </div>
-
-      {/* On-Chain Stream (when wallet linked and contract configured) */}
-      {contractAddress && employee?.wallet_address && (
-        <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-xl">
-          <h3 className="font-semibold text-indigo-900 mb-2">On-Chain Stream (HeLa)</h3>
-          <div className="flex flex-wrap gap-2 items-end">
-            <div>
-              <label className="block text-xs text-indigo-700 mb-1">Rate (HLUSD/sec)</label>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+              <label className="block text-xs uppercase tracking-[0.2em] text-slate-500">
+                Rate (HLUSD / second)
+              </label>
               <input
                 type="text"
                 placeholder="0.0001"
                 value={ratePerSecond}
                 onChange={(e) => setRatePerSecond(e.target.value)}
-                className="border px-3 py-2 rounded w-32 text-sm"
+                className="mt-2 w-full rounded-xl border px-4 py-3 text-sm"
               />
+              <p className="mt-2 text-xs text-slate-500">
+                Use this for first start or to resume with a new rate.
+              </p>
             </div>
+
+            <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Current stream snapshot</p>
+              <p className="mt-2 text-sm text-slate-900">
+                Rate: {streamDetails?.ratePerSecond ? `${Number(ethers.formatEther(streamDetails.ratePerSecond)).toFixed(6)} HLUSD/sec` : "Not set"}
+              </p>
+              <p className="mt-1 text-sm text-slate-900">
+                Accrued: {streamDetails?.accruedBalance ? `${Number(ethers.formatEther(streamDetails.accruedBalance)).toFixed(6)} HLUSD` : "0 HLUSD"}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Last withdraw: {streamDetails?.lastWithdrawTime ? new Date(streamDetails.lastWithdrawTime * 1000).toLocaleString() : "Never"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
             <button
               onClick={handleStartOnChainStream}
-              disabled={onChainLoading || employee?.is_streaming}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50"
+              disabled={onChainLoading}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {onChainLoading ? "..." : "Start On-Chain Stream"}
+              <Play className="h-4 w-4" />
+              Start / Resume
             </button>
             <button
-              onClick={handleStopOnChainStream}
-              disabled={onChainLoading || !employee?.is_streaming}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+              onClick={handlePauseOnChainStream}
+              disabled={onChainLoading || streamStatus !== "Active"}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-white hover:bg-amber-600 disabled:opacity-50"
             >
-              Stop On-Chain Stream
+              <PauseCircle className="h-4 w-4" />
+              Pause
+            </button>
+            <button
+              onClick={handleCancelOnChainStream}
+              disabled={onChainLoading || streamStatus === "Not started"}
+              className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-white hover:bg-rose-700 disabled:opacity-50"
+            >
+              <SquareX className="h-4 w-4" />
+              Cancel
             </button>
           </div>
-          {streamDetails && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-lg border border-indigo-200 p-4">
-                <p className="text-xs text-indigo-700 mb-1">Current Rate</p>
-                <p className="text-sm text-indigo-900 font-semibold">
-                  {streamDetails.ratePerSecond
-                    ? `${Number(ethers.formatEther(streamDetails.ratePerSecond)).toFixed(6)} HLUSD/sec`
-                    : "—"}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg border border-indigo-200 p-4">
-                <p className="text-xs text-indigo-700 mb-1">Accrued Balance</p>
-                <p className="text-sm text-indigo-900 font-semibold">
-                  {streamDetails.accruedBalance
-                    ? `${Number(ethers.formatEther(streamDetails.accruedBalance)).toFixed(6)} HLUSD`
-                    : "—"}
-                </p>
-                <p className="text-xs text-indigo-600 mt-1">
-                  Last Withdraw:{" "}
-                  {streamDetails.lastWithdrawTime
-                    ? new Date(streamDetails.lastWithdrawTime * 1000).toLocaleString()
-                    : "—"}
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       )}
-
-      {/* Pay Salary (only when stream is active) */}
-      {employee.is_streaming && (
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Pay Salary (Gross)</h3>
-          <form onSubmit={handlePaySalary} className="flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">Amount (₹)</label>
-              <input
-                type="number"
-                value={salaryAmount}
-                onChange={(e) => setSalaryAmount(e.target.value)}
-                placeholder="Amount"
-                className="border px-4 py-2 rounded-lg"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-600 mb-1">Description</label>
-              <input
-                type="text"
-                value={salaryDesc}
-                onChange={(e) => setSalaryDesc(e.target.value)}
-                placeholder="e.g. March salary"
-                className="border px-4 py-2 rounded-lg"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={payLoading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {payLoading ? "Processing..." : "Pay"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Transaction history */}
-      {employee.transactions && employee.transactions.length > 0 && (
-        <div className="bg-white p-6 rounded-xl shadow-lg">
-          <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
-          <ul className="space-y-2">
-            {employee.transactions.slice(0, 10).map((t: any) => (
-              <li key={t.id} className="flex justify-between py-2 border-b last:border-0">
-                <span className="text-slate-600">{t.description}</span>
-                <span className="font-medium">₹ {Number(t.amount).toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
     </div>
   );
 }

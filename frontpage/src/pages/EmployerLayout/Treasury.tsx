@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { getTreasury, depositTreasury, withdrawTreasury, getBlockchainConfig } from "../../app/api";
+import { getTreasury, depositTreasury, withdrawTreasury, getBlockchainConfig, getAuthRole } from "../../app/api";
 import { loginAndConnectContract, logoutWeb3Auth, isConnected, getConnectedAddress } from "../../blockchain/web3Auth";
 import { ethers } from "ethers";
 import { HELA_CHAIN_CONFIG, CORE_PAYROLL_ABI } from "../../blockchain/config";
 
 export default function Treasury() {
+  const authRole = getAuthRole();
+  const canRunEmergencyActions = authRole === "admin";
   const [treasury, setTreasury] = useState<any>(null);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -148,7 +150,11 @@ export default function Treasury() {
 
   async function handleEmergencyWithdraw() {
     if (!contractAddress) return;
-    if (!confirm("Withdraw the entire contract treasury to the employer wallet?")) return;
+    if (!canRunEmergencyActions) {
+      alert("Only an admin can trigger emergency withdrawal.");
+      return;
+    }
+    if (!confirm("Withdraw the entire contract treasury to the admin wallet?")) return;
     try {
       setEmergencyLoading(true);
       const { contract } = await loginAndConnectContract(contractAddress);
@@ -243,12 +249,17 @@ export default function Treasury() {
                 </button>
                 <button
                   onClick={handleEmergencyWithdraw}
-                  disabled={emergencyLoading}
+                  disabled={emergencyLoading || !canRunEmergencyActions}
                   className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
                   {emergencyLoading ? "Withdrawing..." : "Emergency Withdraw"}
                 </button>
               </div>
+              {!canRunEmergencyActions && (
+                <p className="text-sm text-amber-700">
+                  Emergency withdraw is reserved for admin accounts.
+                </p>
+              )}
             </>
           )}
         </div>

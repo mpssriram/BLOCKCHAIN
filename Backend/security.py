@@ -57,9 +57,8 @@ class SecurityService:
     # ---------------------------
     # Get current user from token
     # ---------------------------
-    @classmethod
+    @staticmethod
     def get_current_user(
-        cls,
         token: str = Depends(oauth2_scheme),
         session: Session = Depends(db.get_db)
     ) -> User:
@@ -71,7 +70,11 @@ class SecurityService:
         )
 
         try:
-            payload = jwt.decode(token, cls.SECRET_KEY, algorithms=[cls.ALGORITHM])
+            payload = jwt.decode(
+                token,
+                SecurityService.SECRET_KEY,
+                algorithms=[SecurityService.ALGORITHM],
+            )
             email: str = payload.get("sub")
             if email is None:
                 raise credentials_exception
@@ -85,9 +88,8 @@ class SecurityService:
         return user
 
 
-    @classmethod
+    @staticmethod
     def require_employer(
-        cls,
         current_user: User = Depends(get_current_user),
     ) -> User:
         if current_user.role != "employer":
@@ -95,9 +97,26 @@ class SecurityService:
         return current_user
 
 
-    @classmethod
+    @staticmethod
+    def require_dashboard_user(
+        current_user: User = Depends(get_current_user),
+    ) -> User:
+        if current_user.role not in {"admin", "employer"}:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Dashboard access required")
+        return current_user
+
+
+    @staticmethod
+    def require_admin(
+        current_user: User = Depends(get_current_user),
+    ) -> User:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        return current_user
+
+
+    @staticmethod
     def require_employee(
-        cls,
         current_user: User = Depends(get_current_user),
     ) -> User:
         if current_user.role != "employee":
