@@ -169,6 +169,65 @@ uvicorn main:app --reload
 
 The API defaults to `http://127.0.0.1:8000`.
 
+## Deploying the Backend on Render
+
+This repo now includes a Render blueprint at [`render.yaml`](C:/python_practice/BLOCKCHAIN/render.yaml) for the FastAPI backend.
+
+### What Render will create
+
+- one Python web service: `paystream-backend`
+- one Postgres database: `paystream-db`
+
+### Before deploying
+
+Make sure these backend values are ready:
+
+- `SECRET_KEY`
+- `HELA_RPC_URL`
+- `CONTRACT_ADDRESS`
+- `TAX_VAULT_ADDRESS`
+- `ALLOWED_ORIGINS`
+
+You can use [`Backend/.env.example`](C:/python_practice/BLOCKCHAIN/Backend/.env.example) as the reference.
+
+### Deploy steps
+
+1. Push this repo to GitHub.
+2. In Render, choose `New +` -> `Blueprint`.
+3. Select this repository.
+4. Render will detect [`render.yaml`](C:/python_practice/BLOCKCHAIN/render.yaml) and propose the backend service plus database.
+5. Fill in the unset env vars:
+   - `ALLOWED_ORIGINS`
+   - `HELA_RPC_URL`
+   - `CONTRACT_ADDRESS`
+   - `TAX_VAULT_ADDRESS`
+6. Deploy.
+
+### Start command used by Render
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+### Important note about the database
+
+Do not use SQLite on Render for production-style usage. Render web service filesystems are not the right place for persistent app data, so use the attached Postgres database through `DATABASE_URL`.
+
+If you keep the Blueprint as-is, the database uses Render's `free` plan. That is good for testing, but free Postgres should not be treated as long-term production storage.
+
+### After backend deploys
+
+Copy the Render backend URL and set it in your frontend deployments:
+
+```env
+VITE_API_BASE=https://your-render-backend.onrender.com
+```
+
+That variable is used by:
+
+- [`frontpage/src/app/api.ts`](C:/python_practice/BLOCKCHAIN/frontpage/src/app/api.ts)
+- [`Frontendemployee/src/app/api.ts`](C:/python_practice/BLOCKCHAIN/Frontendemployee/src/app/api.ts)
+
 ## Running the Frontends
 
 ### Employer / HR app

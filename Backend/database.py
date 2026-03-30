@@ -4,6 +4,13 @@ from fastapi import HTTPException
 from config import settings
 
 
+def normalize_database_url(url: str) -> str:
+    # Some hosted providers expose postgres:// URLs; SQLAlchemy expects postgresql://.
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 class Database:
     def __init__(self):
         self.Base = declarative_base()
@@ -11,8 +18,9 @@ class Database:
         self.SessionLocal = None
 
         if settings.DATABASE_URL:
+            database_url = normalize_database_url(settings.DATABASE_URL)
             self.engine = create_engine(
-                settings.DATABASE_URL,
+                database_url,
                 pool_pre_ping=True
             )
             self.SessionLocal = sessionmaker(
