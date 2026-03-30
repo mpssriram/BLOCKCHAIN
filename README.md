@@ -169,6 +169,26 @@ uvicorn main:app --reload
 
 The API defaults to `http://127.0.0.1:8000`.
 
+## Running Backend And Frontends Together
+
+For local development, you can now start the backend plus both frontend dev servers with one command:
+
+```bash
+python dev_all.py
+```
+
+On Windows, you can also double-click:
+
+- [`start-dev.bat`](C:/python_practice/BLOCKCHAIN/start-dev.bat)
+
+This starts:
+
+- backend at `http://127.0.0.1:8000`
+- employer frontend at `http://localhost:5173`
+- employee frontend at `http://localhost:5174`
+
+The Vite apps already proxy `/api` requests to the backend during local development.
+
 ## Deploying the Backend on Render
 
 This repo now includes a Render blueprint at [`render.yaml`](C:/python_practice/BLOCKCHAIN/render.yaml) for the FastAPI backend.
