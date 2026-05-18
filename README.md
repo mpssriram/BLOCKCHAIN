@@ -226,6 +226,12 @@ To run the full verification suite from the repo root:
 python check_project.py
 ```
 
+Or from a shell-oriented workflow:
+
+```bash
+./scripts/check_project.sh
+```
+
 On Windows, you can also double-click:
 
 - [`start-dev.bat`](C:/python_practice/BLOCKCHAIN/start-dev.bat)
