@@ -48,3 +48,13 @@ export async function updateMyWallet(wallet_address: string) {
     body: JSON.stringify({ wallet_address }),
   });
 }
+
+export async function recordMyWithdrawal(tx_hash: string, amount?: number) {
+  return apiRequest("/api/me/withdrawals/record", {
+    method: "POST",
+    body: JSON.stringify({
+      tx_hash,
+      amount: typeof amount === "number" ? amount : null,
+    }),
+  });
+}

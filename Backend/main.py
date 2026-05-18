@@ -49,6 +49,51 @@ def ensure_wallet_address_column() -> None:
         pass
 
 
+def ensure_employee_is_active_column() -> None:
+    if not db.is_configured:
+        return
+
+    try:
+        from sqlalchemy import text
+
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE employees ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def ensure_transaction_tx_hash_column() -> None:
+    if not db.is_configured:
+        return
+
+    try:
+        from sqlalchemy import text
+
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN tx_hash VARCHAR(255)"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def ensure_payroll_event_sync_columns() -> None:
+    if not db.is_configured:
+        return
+
+    try:
+        from sqlalchemy import text
+
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE payroll_events ADD COLUMN tx_hash VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE payroll_events ADD COLUMN block_number INTEGER"))
+            conn.execute(text("ALTER TABLE payroll_events ADD COLUMN log_index INTEGER"))
+            conn.execute(text("ALTER TABLE payroll_events ADD COLUMN metadata JSON"))
+            conn.commit()
+    except Exception:
+        pass
+
+
 def seed_demo_data(session: Session) -> None:
     if not session.query(User).filter(User.email == "employee@test.com").first():
         session.add(
@@ -127,6 +172,9 @@ def startup() -> None:
 
     db.create_tables()
     ensure_wallet_address_column()
+    ensure_employee_is_active_column()
+    ensure_transaction_tx_hash_column()
+    ensure_payroll_event_sync_columns()
 
     session: Session = db.SessionLocal()
     try:

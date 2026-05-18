@@ -4,7 +4,8 @@ import { StatCard } from './components/StatCard';
 import { TransactionGraph } from './components/TransactionGraph';
 import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
-import { getMyProfile, getMyTransactions, getBlockchainConfig, updateMyWallet } from './api';
+import { TowerLoader } from './components/TowerLoader';
+import { getMyProfile, getMyTransactions, getBlockchainConfig, recordMyWithdrawal, updateMyWallet } from './api';
 import { loginAndConnectContract, reconnectIfLoggedIn, getPayrollContract, ensureHeLaNetwork } from '../blockchain/wallet';
 import { HELA_CHAIN_CONFIG } from '../blockchain/config';
 import { ethers } from 'ethers';
@@ -138,9 +139,15 @@ export default function App() {
     if (!contractAddress || !walletAddress) return;
     setWithdrawLoading(true);
     try {
+      const withdrawAmount = claimableWei ? Number(ethers.formatEther(claimableWei)) : 0;
       const { contract } = await loginAndConnectContract(contractAddress);
       const tx = await contract.withdraw();
       await tx.wait();
+      try {
+        await recordMyWithdrawal(tx.hash, withdrawAmount);
+      } catch (recordErr: any) {
+        alert('Withdrawal succeeded but failed to record in backend: ' + (recordErr?.message || 'Unknown error'));
+      }
       await loadClaimable();
     } catch (err: any) {
       alert(err?.message || 'Withdraw failed');
@@ -487,7 +494,9 @@ export default function App() {
           </div>
 
           {loading ? (
-            <div className="rounded-3xl border border-white/10 bg-white/6 px-6 py-8 text-slate-200">Loading...</div>
+            <div className="rounded-3xl border border-white/10 bg-white/6 px-6 py-12 text-slate-200">
+              <TowerLoader className="py-6" label="Loading your employee workspace..." />
+            </div>
           ) : (
             renderContent()
           )}

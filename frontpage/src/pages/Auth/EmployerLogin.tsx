@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { loginWithFirebase, loginWithGoogle } from "../../app/auth";
+import { TowerLoader } from "../../app/components/TowerLoader";
 
 const highlights = [
   {
@@ -134,6 +135,12 @@ export default function EmployerLogin() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.05 }}
       >
+        {loading ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#050b10]/70 backdrop-blur-sm">
+            <TowerLoader label="Opening employer dashboard..." />
+          </div>
+        ) : null}
+
         {/* Top bar */}
         <header className="mb-8 flex items-center justify-between">
           <Link
@@ -277,7 +284,7 @@ export default function EmployerLogin() {
                   whileTap={{ scale: loading ? 1 : 0.99 }}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 py-4 text-sm font-semibold text-slate-950 shadow-[0_16px_40px_rgba(16,185,129,0.35)] transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {loading ? "Signing in…" : "Enter dashboard"}
+                  {loading ? "Preparing dashboard..." : "Enter dashboard"}
                   {!loading && <ArrowRight className="h-4 w-4" />}
                 </motion.button>
 

@@ -5,7 +5,8 @@ from sqlalchemy import (
     Numeric,
     ForeignKey,
     DateTime,
-    Boolean
+    Boolean,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -25,6 +26,7 @@ class Employee(Base):
     email = Column(String(150), unique=True, nullable=False)
     role = Column(String(50), default="employee")
 
+    is_active = Column(Boolean, default=True)
     is_streaming = Column(Boolean, default=False)
 
     # On-chain wallet address (for CorePayroll contract)
@@ -62,6 +64,7 @@ class Transaction(Base):
     tax_amount = Column(Numeric(12, 2), default=0)     # Tax withheld
 
     description = Column(String(255))
+    tx_hash = Column(String(255), nullable=True, index=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     employee_id = Column(Integer, ForeignKey("employees.id"))
@@ -137,6 +140,78 @@ class Treasury(Base):
 
 
 # ===============================
+# PAYROLL EVENT
+# ===============================
+class PayrollEvent(Base):
+    __tablename__ = "payroll_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
+    event_type = Column(String(50), default="salary")
+    amount = Column(Numeric(12, 2), nullable=True)
+    tx_hash = Column(String(255), nullable=True, index=True)
+    block_number = Column(Integer, nullable=True, index=True)
+    log_index = Column(Integer, nullable=True)
+    event_metadata = Column("metadata", JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ===============================
+# PAYROLL INTENT
+# ===============================
+class PayrollIntent(Base):
+    __tablename__ = "payroll_intents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    idempotency_key = Column(String(120), unique=True, index=True, nullable=False)
+    intent_type = Column(String(50), nullable=False, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True, index=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    amount = Column(Numeric(12, 2), nullable=True)
+    rate_per_second_wei = Column(String(120), nullable=True)
+    tx_hash = Column(String(255), nullable=True, index=True)
+    status = Column(String(30), default="created", nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+
+# ===============================
+# ADMIN ACTION LOG
+# ===============================
+class AdminActionLog(Base):
+    __tablename__ = "admin_action_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    action_type = Column(String(50), nullable=False, index=True)
+    target_employee_id = Column(Integer, nullable=True, index=True)
+    tx_hash = Column(String(255), nullable=True)
+    action_metadata = Column("metadata", JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ===============================
+# NOTIFICATION LOG
+# ===============================
+class NotificationLog(Base):
+    __tablename__ = "notification_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    channel = Column(String(30), nullable=False, index=True)
+    recipient = Column(String(255), nullable=False, index=True)
+    subject = Column(String(255), nullable=True)
+    template_name = Column(String(255), nullable=True)
+    status = Column(String(30), default="sent", nullable=False, index=True)
+    notification_metadata = Column("metadata", JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+# ===============================
 # BLOCKCHAIN TRANSACTION LOG
 # ===============================
 class BlockchainTransaction(Base):
@@ -149,6 +224,23 @@ class BlockchainTransaction(Base):
     status = Column(String(30), default="pending")
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ===============================
+# BLOCKCHAIN SYNC STATE
+# ===============================
+class BlockchainSyncState(Base):
+    __tablename__ = "blockchain_sync_state"
+
+    id = Column(Integer, primary_key=True)
+    sync_key = Column(String(80), unique=True, nullable=False, index=True)
+    last_synced_block = Column(Integer, default=0, nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
 
 
 # ===============================

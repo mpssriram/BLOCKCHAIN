@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ExternalLink, PauseCircle, Play, SquareX } from "lucide-react";
-import { cancelStream, getBlockchainConfig, getEmployee, pauseStream, startStream, updateEmployeeWallet } from "../../../app/api";
+import { cancelStream, getBlockchainConfig, getEmployee, pauseStream, recordStreamAction, startStream, updateEmployeeWallet } from "../../../app/api";
 import { loginAndConnectContract } from "../../../blockchain/wallet";
 import { CORE_PAYROLL_ABI, HELA_CHAIN_CONFIG } from "../../../blockchain/config";
 import { ethers } from "ethers";
@@ -126,6 +126,7 @@ export default function EmployeeDetails() {
       const tx = await contract.startStream(employee.wallet_address, rate);
       await tx.wait();
       await startStream(Number(id));
+      await recordStreamAction(Number(id), tx.hash, "start", rate.toString());
       await loadEmployee(Number(id));
       setRatePerSecond("");
     } catch (err: any) {
@@ -143,6 +144,7 @@ export default function EmployeeDetails() {
       const tx = await contract.stopStream(employee.wallet_address);
       await tx.wait();
       await pauseStream(Number(id));
+      await recordStreamAction(Number(id), tx.hash, "pause");
       await loadEmployee(Number(id));
     } catch (err: any) {
       alert(err?.message || "Failed to pause stream");
@@ -163,6 +165,7 @@ export default function EmployeeDetails() {
       const tx = await contract.cancelStream(employee.wallet_address);
       await tx.wait();
       await cancelStream(Number(id));
+      await recordStreamAction(Number(id), tx.hash, "cancel");
       await loadEmployee(Number(id));
     } catch (err: any) {
       alert(err?.message || "Failed to cancel stream");

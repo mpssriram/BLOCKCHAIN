@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
     ArrowRight,
-    BadgeIndianRupee,
+    CheckCircle2,
     Eye,
     EyeOff,
     LockKeyhole,
@@ -11,21 +11,22 @@ import {
     Sparkles,
 } from "lucide-react";
 import { loginWithFirebase, loginWithGoogle, redirectToEmployeePortal } from "../../app/auth";
+import { TowerLoader } from "../../app/components/TowerLoader";
 
 const featurePills = ["Live earnings", "Secure payroll", "Instant history"];
 
-const proofPoints = [
+const workspaceHighlights = [
     {
-        label: "Payout visibility",
-        value: "24/7",
+        title: "What you can do here",
+        items: ["Check payment history", "Review wallet details", "Track salary activity"],
     },
     {
-        label: "Employee access",
-        value: "Unified",
+        title: "Before you sign in",
+        items: ["Use your company email", "Keep your password ready", "Use Google if your account is linked"],
     },
     {
-        label: "Security layer",
-        value: "Verified",
+        title: "Need help?",
+        items: ["Contact payroll support", "Reset access with your admin", "Report account issues quickly"],
     },
 ];
 
@@ -107,6 +108,12 @@ export default function EmployeeLogin() {
                     transition={{ duration: 0.65, ease: "easeOut" }}
                     className="relative mx-auto grid min-h-[calc(100vh-3rem)] w-full max-w-7xl overflow-hidden rounded-[32px] border border-white/10 bg-white/6 shadow-[0_40px_120px_rgba(2,6,23,0.55)] backdrop-blur-xl lg:grid-cols-[1.1fr_0.9fr]"
                 >
+                    {loading ? (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#07111f]/72 backdrop-blur-sm">
+                            <TowerLoader label="Signing you in..." />
+                        </div>
+                    ) : null}
+
                     <section className="relative flex flex-col justify-between border-b border-white/10 p-7 sm:p-10 lg:border-b-0 lg:border-r lg:p-12 xl:p-14">
                         <div>
                             <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm font-medium text-cyan-100">
@@ -119,11 +126,11 @@ export default function EmployeeLogin() {
                             <div className="mt-10 max-w-xl">
                                 <p className="text-sm uppercase tracking-[0.32em] text-cyan-200/70">Payroll access</p>
                                 <h1 className="mt-4 text-4xl font-semibold leading-tight text-white sm:text-5xl xl:text-6xl">
-                                    Track earnings inside a portal that feels built for real work.
+                                    Sign in once. See exactly what payroll has recorded for you.
                                 </h1>
                                 <p className="mt-6 max-w-lg text-base leading-8 text-slate-300 sm:text-lg">
-                                    Review salary flow, payment history, and secure account access in one streamlined
-                                    employee experience.
+                                    This portal is for employees to review earnings, payout history, and wallet-linked
+                                    salary activity without chasing updates manually.
                                 </p>
                             </div>
 
@@ -139,45 +146,51 @@ export default function EmployeeLogin() {
                             </div>
                         </div>
 
-                        <div className="mt-10 grid gap-5 xl:grid-cols-[1.25fr_0.95fr]">
+                        <div className="mt-10 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
                             <div className="rounded-[28px] border border-white/10 bg-[#0a1628]/80 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                <div className="flex items-start justify-between gap-5">
-                                    <div>
-                                        <p className="text-sm font-medium text-cyan-200/80">This month</p>
-                                        <p className="mt-3 text-4xl font-semibold tracking-tight text-white">₹84,200</p>
-                                        <p className="mt-3 max-w-xs text-sm leading-7 text-slate-400">
-                                            Salary tracking stays visible the moment you sign in.
-                                        </p>
-                                    </div>
-                                    <div className="rounded-2xl bg-cyan-300 p-3 text-slate-950 shadow-lg shadow-cyan-500/20">
-                                        <BadgeIndianRupee className="h-6 w-6" />
-                                    </div>
-                                </div>
+                                <p className="text-sm uppercase tracking-[0.26em] text-cyan-200/70">Inside the portal</p>
+                                <h3 className="mt-4 text-2xl font-semibold text-white sm:text-3xl">
+                                    A useful login screen should explain the destination.
+                                </h3>
+                                <p className="mt-4 max-w-md text-sm leading-7 text-slate-400 sm:text-base">
+                                    After sign-in, employees land in a workspace focused on earnings, recorded
+                                    transactions, and account details tied to salary disbursement.
+                                </p>
 
-                                <div className="mt-8 h-28 rounded-[22px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] p-4">
-                                    <div className="flex h-full items-end gap-3">
-                                        {[44, 62, 58, 76, 70, 92, 84].map((height, index) => (
-                                            <div key={index} className="flex-1 rounded-t-full bg-white/8">
-                                                <motion.div
-                                                    initial={{ height: 0 }}
-                                                    animate={{ height: `${height}%` }}
-                                                    transition={{ duration: 0.8, delay: 0.15 + index * 0.06 }}
-                                                    className="rounded-t-full bg-gradient-to-t from-cyan-300 via-sky-300 to-amber-200"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className="mt-8 space-y-4">
+                                    {[
+                                        "View current and previous payouts in one place.",
+                                        "See recorded transactions without waiting on payroll email chains.",
+                                        "Manage wallet details used for blockchain-linked payment flows.",
+                                    ].map((item) => (
+                                        <div
+                                            key={item}
+                                            className="flex items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4"
+                                        >
+                                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-slate-950">
+                                                <CheckCircle2 className="h-4 w-4" />
+                                            </span>
+                                            <p className="text-sm leading-7 text-slate-300">{item}</p>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
                             <div className="grid gap-4">
-                                {proofPoints.map((point) => (
+                                {workspaceHighlights.map((point) => (
                                     <div
-                                        key={point.label}
-                                        className="rounded-[24px] border border-white/10 bg-white/7 px-5 py-4"
+                                        key={point.title}
+                                        className="rounded-[24px] border border-white/10 bg-white/7 px-5 py-5"
                                     >
-                                        <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{point.label}</p>
-                                        <p className="mt-2 text-2xl font-semibold text-white">{point.value}</p>
+                                        <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{point.title}</p>
+                                        <div className="mt-4 space-y-3">
+                                            {point.items.map((item) => (
+                                                <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-200">
+                                                    <span className="mt-1 h-2 w-2 rounded-full bg-cyan-300" />
+                                                    <span>{item}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -293,7 +306,7 @@ export default function EmployeeLogin() {
                                     disabled={loading || !email || !password}
                                     className="w-full rounded-2xl bg-[linear-gradient(135deg,#f0b85b_0%,#ffdf95_18%,#75f2d6_55%,#53b3ff_100%)] px-5 py-4 text-lg font-semibold text-slate-950 shadow-[0_18px_44px_rgba(83,179,255,0.28)] transition hover:shadow-[0_22px_54px_rgba(83,179,255,0.38)] disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    {loading ? "Signing in..." : "Sign in securely"}
+                                    {loading ? "Preparing workspace..." : "Sign in securely"}
                                 </motion.button>
 
                                 {(import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL &&

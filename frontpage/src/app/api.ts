@@ -156,6 +156,23 @@ export async function cancelStream(id: number) {
   return apiRequest(`/api/stream/cancel/${id}`, { method: "POST" });
 }
 
+export async function recordStreamAction(
+  employee_id: number,
+  tx_hash: string,
+  action: "start" | "pause" | "cancel",
+  rate_per_second_wei?: string
+) {
+  return apiRequest("/api/stream/record", {
+    method: "POST",
+    body: JSON.stringify({
+      employee_id,
+      tx_hash,
+      action,
+      rate_per_second_wei: rate_per_second_wei || null,
+    }),
+  });
+}
+
 /* =========================
    TRANSACTIONS (Salary)
 ========================= */

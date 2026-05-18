@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Activity, Pause, Ban, CircleOff, TrendingUp } from "lucide-react";
+import { Activity, Ban, CircleOff, Pause, TrendingUp } from "lucide-react";
 import { ethers } from "ethers";
 import { getMyStream, type StreamDetails } from "../api";
+import { TowerLoader } from "./TowerLoader";
 
 const POLL_MS = 30_000;
 const TICK_MS = 1_000;
@@ -138,7 +139,9 @@ export function LiveSalaryCounter({ onStreamUpdate, className = "" }: Props) {
         </div>
 
         {loading ? (
-          <p className="text-sm text-slate-400">Loading stream from chain…</p>
+          <div className="py-6">
+            <TowerLoader className="scale-[0.55]" label="Loading stream from chain..." />
+          </div>
         ) : error ? (
           <p className="text-sm text-rose-300">{error}</p>
         ) : (
@@ -156,19 +159,19 @@ export function LiveSalaryCounter({ onStreamUpdate, className = "" }: Props) {
 
             {status === "active" && ratePerSecond > 0 && (
               <p className="mt-2 text-sm text-slate-400">
-                +{ratePerSecond.toFixed(8)} HLUSD/sec · updates every second
+                +{ratePerSecond.toFixed(8)} HLUSD/sec | updates every second
               </p>
             )}
 
             {status === "paused" && (
               <p className="mt-2 text-sm text-amber-200/80">
-                Stream paused — balance frozen until HR resumes.
+                Stream paused | balance frozen until HR resumes.
               </p>
             )}
 
             {status === "cancelled" && (
               <p className="mt-2 text-sm text-rose-200/80">
-                Stream ended — you can still withdraw earned balance.
+                Stream ended | you can still withdraw earned balance.
               </p>
             )}
 
@@ -180,7 +183,7 @@ export function LiveSalaryCounter({ onStreamUpdate, className = "" }: Props) {
 
             {stream?.cached && (
               <p className="mt-3 text-xs text-slate-600">
-                Chain data cached · refreshes every 30s
+                Chain data cached | refreshes every 30s
               </p>
             )}
           </>
