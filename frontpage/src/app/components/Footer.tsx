@@ -48,7 +48,7 @@ export function Footer() {
           <div>
             <h4 className="text-2xl font-semibold">PayStream</h4>
             <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">
-              A HeLa-aligned payroll streaming demo with employer treasury controls, employee wallet claims,
+              A HeLa-aligned payroll streaming platform with employer treasury controls, employee wallet claims,
               and contract-backed stream state.
             </p>
           </div>

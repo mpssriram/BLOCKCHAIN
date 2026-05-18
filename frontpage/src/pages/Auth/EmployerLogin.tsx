@@ -14,7 +14,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { loginWithFirebase, loginWithGoogle } from "../../app/auth";
+import { isDemoLoginEnabled, loginWithFirebase, loginWithGoogle } from "../../app/auth";
 import { TowerLoader } from "../../app/components/TowerLoader";
 
 const highlights = [
@@ -50,6 +50,7 @@ export default function EmployerLogin() {
   const navigate = useNavigate();
 
   const hasDemo =
+    isDemoLoginEnabled() &&
     !!(import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL &&
     !!(import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD;
 
@@ -84,9 +85,17 @@ export default function EmployerLogin() {
   };
 
   const handleDemoLogin = async () => {
+    if (!isDemoLoginEnabled()) {
+      setError("Demo login is disabled.");
+      return;
+    }
+
     const demoEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL || "";
     const demoPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD || "";
-    if (!demoEmail || !demoPassword) return;
+    if (!demoEmail || !demoPassword) {
+      setError("Demo credentials not set.");
+      return;
+    }
 
     setError("");
     setLoading(true);

@@ -3,6 +3,10 @@ import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOu
 import { exchangeFirebaseToken } from './api';
 import { firebaseAuth } from './firebase';
 
+export function isDemoLoginEnabled(): boolean {
+  return (import.meta as any).env?.VITE_ENABLE_DEMO_LOGIN === 'true';
+}
+
 function formatFirebaseAuthError(err: unknown): string {
   const code = (err as { code?: string })?.code ?? '';
   if (code === 'auth/configuration-not-found') {

@@ -10,7 +10,7 @@ import {
     ShieldCheck,
     Sparkles,
 } from "lucide-react";
-import { loginWithFirebase, loginWithGoogle, redirectToEmployeePortal } from "../../app/auth";
+import { isDemoLoginEnabled, loginWithFirebase, loginWithGoogle, redirectToEmployeePortal } from "../../app/auth";
 import { TowerLoader } from "../../app/components/TowerLoader";
 
 const featurePills = ["Live earnings", "Secure payroll", "Instant history"];
@@ -72,6 +72,11 @@ export default function EmployeeLogin() {
     };
 
     const handleDemoLogin = async () => {
+        if (!isDemoLoginEnabled()) {
+            setError("Demo login is disabled.");
+            return;
+        }
+
         const demoEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL || "";
         const demoPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_PASSWORD || "";
 
@@ -309,7 +314,8 @@ export default function EmployeeLogin() {
                                     {loading ? "Preparing workspace..." : "Sign in securely"}
                                 </motion.button>
 
-                                {(import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL &&
+                                {isDemoLoginEnabled() &&
+                                    (import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL &&
                                     (import.meta as any).env?.VITE_DEMO_EMPLOYEE_PASSWORD && (
                                         <button
                                             onClick={handleDemoLogin}

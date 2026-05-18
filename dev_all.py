@@ -56,6 +56,7 @@ def run_setup() -> None:
             "DATABASE_URL=sqlite:///./blockchain.db",
             "SECRET_KEY=local-dev-secret",
             "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174",
+            "ENABLE_DEMO_SEED=false",
         ]
 
         # If a FIREBASE_SERVICE_ACCOUNT_JSON is present in the environment, add it to the .env
