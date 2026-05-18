@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { login } from "../../app/api";
+import { loginWithFirebase, redirectToEmployeePortal } from "../../app/auth";
 
 export default function AutoLogin() {
   const location = useLocation();
@@ -11,9 +11,7 @@ export default function AutoLogin() {
     const role = (params.get("role") || "employee").toLowerCase();
     const destParam = params.get("dest");
     const employerDest = "/employer-dashboard/overview";
-    const employeeDest = "/employee";
     const isDashboardRole = role === "employer" || role === "admin";
-    const dest = destParam || (isDashboardRole ? employerDest : employeeDest);
 
     const demoEmployerEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL || "employer@test.com";
     const demoEmployerPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD || "123456";
@@ -28,17 +26,16 @@ export default function AutoLogin() {
       return;
     }
 
-    login(email, password)
-      .then((data: any) => {
-        if (data?.access_token) {
-          localStorage.setItem("token", data.access_token);
-          window.location.href = dest;
+    loginWithFirebase(email, password, isDashboardRole ? "employer" : "employee")
+      .then(() => {
+        if (isDashboardRole) {
+          window.location.href = destParam || employerDest;
         } else {
-          setStatus("Login failed");
+          redirectToEmployeePortal();
         }
       })
       .catch(() => setStatus("Login failed"))
-      .finally(() => {});
+      .finally(() => { });
   }, [location.search]);
 
   return (

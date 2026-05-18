@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ExternalLink, PauseCircle, Play, SquareX } from "lucide-react";
 import { cancelStream, getBlockchainConfig, getEmployee, pauseStream, startStream, updateEmployeeWallet } from "../../../app/api";
-import { loginAndConnectContract } from "../../../blockchain/web3Auth";
+import { loginAndConnectContract } from "../../../blockchain/wallet";
 import { CORE_PAYROLL_ABI, HELA_CHAIN_CONFIG } from "../../../blockchain/config";
 import { ethers } from "ethers";
 

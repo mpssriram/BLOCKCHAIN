@@ -57,11 +57,35 @@ export async function login(email: string, password: string) {
   return res.json(); // { access_token, token_type, ... }
 }
 
+export async function exchangeFirebaseToken(idToken: string, roleHint: string) {
+  const res = await fetch(`${BASE_URL}/api/firebase-login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ id_token: idToken, role_hint: roleHint }),
+  });
+
+  if (!res.ok) {
+    let errorMessage = "Firebase sign-in failed";
+    try {
+      const err = await res.json();
+      errorMessage = err.detail || errorMessage;
+    } catch { }
+    throw new Error(errorMessage);
+  }
+
+  return res.json();
+}
+
 /* =========================
    LOGOUT
 ========================= */
 export function logout() {
   localStorage.removeItem("token");
+  localStorage.removeItem("firebaseToken");
+  localStorage.removeItem("firebaseUid");
+  localStorage.removeItem("firebaseEmail");
   window.location.href = "/"; // redirect to frontpage
 }
 

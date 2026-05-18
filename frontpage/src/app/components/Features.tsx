@@ -1,71 +1,82 @@
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
+import { BanknoteArrowUp, Gauge, ShieldCheck, Workflow } from 'lucide-react';
+import { EntrySectionIntro } from './EntrySection';
 
-const sections = [
+const features = [
   {
-    title: 'HeLa Chain is designed for real-world adoption.',
-    body: 'CorePayroll leans on that message by combining web-style employer operations with on-chain salary streaming, treasury visibility, and wallet-connected employee claims.',
+    title: 'Fund the treasury',
+    body: 'Employers deposit HLUSD-style value into the payroll contract and keep a clear view of available runway.',
+    icon: BanknoteArrowUp,
   },
   {
-    title: 'Modular architecture maps cleanly to payroll workflows.',
-    body: 'Execution handles stream logic, consensus secures settlement, guardian-style trust improves operational confidence, and future AI-oriented flows can support payroll automation.',
+    title: 'Start salary streams',
+    body: 'Each employee can be assigned a live rate, paused safely, or cancelled while preserving earned balance.',
+    icon: Workflow,
   },
   {
-    title: 'Stable-fee orientation makes salary streaming more practical.',
-    body: 'That is the product story this frontend now tells more clearly through documentation-like content instead of generic SaaS marketing blocks.',
+    title: 'Claim earned payroll',
+    body: 'Employees see claimable balance and withdraw through their connected wallet when funds are available.',
+    icon: Gauge,
   },
-];
-
-const bullets = [
-  'Employer dashboard for treasury, streams, and bonuses',
-  'Employee portal for claimable balance and withdrawals',
-  'Wallet configuration aligned with HeLa network endpoints',
-  'Cleaner surfaces inspired by official docs and explorer UI',
+  {
+    title: 'Split tax automatically',
+    body: 'The contract sends the configured tax share to the vault and the net amount to the employee.',
+    icon: ShieldCheck,
+  },
 ];
 
 export function Features() {
   return (
-    <section className="border-t border-slate-200 bg-white px-4 py-20 sm:px-6 lg:px-8">
+    <section className="bg-white px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]"
-        >
-          <div>
-            <p className="text-sm font-medium text-slate-500">Documentation-inspired overview</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-              A frontend that looks closer to HeLa docs than a generic startup template.
-            </h2>
-            <div className="mt-8 space-y-8">
-              {sections.map((section) => (
-                <div key={section.title}>
-                  <h3 className="text-2xl font-semibold text-slate-950">{section.title}</h3>
-                  <p className="mt-3 text-lg leading-8 text-slate-600">{section.body}</p>
+        <EntrySectionIntro
+          eyebrow="How it works"
+          title="Designed around the real payroll journey."
+          description="The entry page now explains the product through the actions users recognize: fund, stream, claim, and reconcile."
+        />
+
+        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <motion.article
+                key={feature.title}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.05 }}
+                className="rounded-2xl border border-slate-200 bg-[#fbfcfa] p-6 transition hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.10)]"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#dff8ef] text-[#008f7c]">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-6 text-xl font-semibold text-slate-950">{feature.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{feature.body}</p>
+              </motion.article>
+            );
+          })}
+        </div>
+
+        <div className="mt-12 rounded-[2rem] bg-slate-950 p-6 text-white md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold uppercase text-cyan-200">Entry page goal</p>
+              <h3 className="mt-3 text-3xl font-semibold">Make the first screen feel alive.</h3>
+              <p className="mt-4 text-base leading-8 text-slate-300">
+                A visitor should understand the system before login: money enters the treasury, streams accrue,
+                employees claim, and the chain records the activity.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {['Treasury funded', 'Stream accrues', 'Employee withdraws'].map((step, index) => (
+                <div key={step} className="rounded-2xl border border-white/10 bg-white/[0.07] p-5">
+                  <p className="text-sm text-slate-400">Step {index + 1}</p>
+                  <p className="mt-3 font-semibold text-white">{step}</p>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="rounded-[32px] border border-slate-200 bg-slate-950 p-8 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-            <p className="text-sm font-medium text-cyan-300">What this app focuses on</p>
-            <ul className="mt-6 space-y-4">
-              {bullets.map((bullet) => (
-                <li key={bullet} className="flex gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm leading-7 text-slate-200">
-                  <span className="mt-2 h-2 w-2 rounded-full bg-cyan-400" />
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-8 rounded-2xl bg-cyan-50 px-5 py-5 text-slate-900">
-              <p className="text-sm font-medium text-cyan-700">Design note</p>
-              <p className="mt-2 text-sm leading-7 text-slate-600">
-                The goal is not to clone the docs literally, but to borrow their clarity, spacing, and trust-building structure.
-              </p>
-            </div>
-          </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

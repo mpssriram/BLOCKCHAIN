@@ -39,6 +39,10 @@ def python_command() -> str:
     return str(BACKEND / "venv" / "bin" / "python")
 
 
+def npm_install_command() -> str:
+    return "npm.cmd install" if sys.platform == "win32" else "npm install"
+
+
 def run_setup() -> None:
     venv_python = Path(python_command())
     if not venv_python.exists():
@@ -48,20 +52,28 @@ def run_setup() -> None:
     env_file = BACKEND / ".env"
     if not env_file.exists():
         print("[setup] Creating Backend/.env with local SQLite defaults...")
-        env_file.write_text(
-            "\n".join(
-                [
-                    "DATABASE_URL=sqlite:///./blockchain.db",
-                    "SECRET_KEY=local-dev-secret",
-                    "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
+        content_lines = [
+            "DATABASE_URL=sqlite:///./blockchain.db",
+            "SECRET_KEY=local-dev-secret",
+            "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174",
+        ]
+
+        # If a FIREBASE_SERVICE_ACCOUNT_JSON is present in the environment, add it to the .env
+        firebase_raw = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+        if firebase_raw:
+            # Wrap in single quotes to preserve newlines if present
+            content_lines.append(f"FIREBASE_SERVICE_ACCOUNT_JSON='{firebase_raw.replace("'", "\\'")}'")
+
+        env_file.write_text("\n".join(content_lines) + "\n", encoding="utf-8")
 
     print("[setup] Installing backend dependencies...")
     subprocess.run([pip_command(), "install", "-r", "requirements.txt"], cwd=BACKEND, check=True)
+
+    print("[setup] Installing employer frontend dependencies...")
+    subprocess.run(windows_cmd(npm_install_command()), cwd=FRONTPAGE, check=True)
+
+    print("[setup] Installing employee frontend dependencies...")
+    subprocess.run(windows_cmd(npm_install_command()), cwd=EMPLOYEE, check=True)
 
 
 def start_processes() -> list[subprocess.Popen]:

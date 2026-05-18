@@ -142,6 +142,11 @@ class UserLogin(BaseModel):
     password: str
 
 
+class FirebaseTokenExchange(BaseModel):
+    id_token: str
+    role_hint: str = "employee"
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -164,3 +169,23 @@ class BlockchainTxResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+# =====================================================
+# ON-CHAIN STREAM (live salary)
+# =====================================================
+
+class StreamDetailsResponse(BaseModel):
+    employee_id: Optional[int] = None
+    wallet_address: Optional[str] = None
+    contract_address: str = ""
+    claimable_wei: str = "0"
+    rate_per_second_wei: str = "0"
+    accrued_balance_wei: str = "0"
+    last_withdraw_time: int = 0
+    last_update: int = 0
+    is_active: bool = False
+    status: str = "not_started"
+    fetched_at: int = 0
+    cached: bool = False
+    reason: Optional[str] = None

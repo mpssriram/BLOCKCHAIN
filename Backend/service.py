@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
-from datetime import datetime
 from fastapi import HTTPException
 from decimal import Decimal
 from typing import Optional

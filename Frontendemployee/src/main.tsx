@@ -1,4 +1,4 @@
-// Buffer polyfill for browser (required by Web3Auth/ethers)
+// Buffer polyfill for browser wallet and ethers dependencies.
 import { Buffer } from "buffer";
 if (typeof window !== "undefined") (window as any).Buffer = Buffer;
 

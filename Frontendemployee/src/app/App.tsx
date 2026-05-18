@@ -5,7 +5,7 @@ import { TransactionGraph } from './components/TransactionGraph';
 import { TransactionHistory } from './components/TransactionHistory';
 import { PersonalSetup } from './components/PersonalSetup';
 import { getMyProfile, getMyTransactions, getBlockchainConfig, updateMyWallet } from './api';
-import { loginAndConnectContract, reconnectIfLoggedIn, getPayrollContract, ensureHeLaNetwork } from '../blockchain/web3Auth';
+import { loginAndConnectContract, reconnectIfLoggedIn, getPayrollContract, ensureHeLaNetwork } from '../blockchain/wallet';
 import { HELA_CHAIN_CONFIG } from '../blockchain/config';
 import { ethers } from 'ethers';
 import {
@@ -40,9 +40,20 @@ export default function App() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get('token');
+    if (tokenFromUrl) {
+      localStorage.setItem('token', tokenFromUrl);
+      params.delete('token');
+      const query = params.toString();
+      const cleanUrl = `${window.location.pathname}${query ? `?${query}` : ''}`;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
-      const loginUrl = (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || '/employee-login';
+      const loginUrl =
+        (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || 'http://localhost:5173/employee-login';
       window.location.href = loginUrl;
       return;
     }
@@ -289,7 +300,7 @@ export default function App() {
               onClick={handleConnectWallet}
               className="rounded-2xl bg-cyan-600 px-6 py-3 text-white transition hover:bg-cyan-700"
             >
-              Connect Wallet (Web3Auth)
+              Connect Wallet
             </button>
           ) : (
             <div className="space-y-3">

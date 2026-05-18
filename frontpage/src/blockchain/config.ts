@@ -1,6 +1,6 @@
 /**
  * CorePayroll contract configuration for HeLa.
- * Step 3 from Web3Auth integration guide.
+ * HeLa testnet and CorePayroll contract configuration.
  */
 
 export const HELA_NETWORKS = {

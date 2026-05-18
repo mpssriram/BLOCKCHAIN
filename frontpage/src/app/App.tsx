@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { redirectToEmployeePortal } from "./auth";
 
 /* Landing Page Components */
 import { Hero } from "./components/Hero";
@@ -9,6 +10,7 @@ import { Features } from "./components/Features";
 import { Footer } from "./components/Footer";
 
 /* Auth Pages */
+import AuthChoice from "../pages/Auth/AuthChoice";
 import EmployerLogin from "../pages/Auth/EmployerLogin";
 import EmployeeLogin from "../pages/Auth/EmployeeLogin";
 import SetToken from "../pages/Auth/SetToken";
@@ -28,6 +30,13 @@ import Settings from "../pages/EmployerLayout/Settings";
 /* Protected Route */
 import ProtectedRoute from "./components/ProtectedRoute";
 
+
+function EmployeePortalRedirect() {
+  useEffect(() => {
+    redirectToEmployeePortal();
+  }, []);
+  return null;
+}
 
 /* Landing Page */
 function LandingPage() {
@@ -49,12 +58,14 @@ export default function App() {
       <Routes>
         {/* Public Pages */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthChoice />} />
         <Route path="/employer-login" element={<EmployerLogin />} />
         <Route path="/employee-login" element={<EmployeeLogin />} />
         <Route path="/set-token" element={<SetToken />} />
         <Route path="/auto-login" element={<AutoLogin />} />
 
-        {/* Employee portal is served by a separate app; frontpage does not host /employee */}
+        <Route path="/employee" element={<EmployeePortalRedirect />} />
+        <Route path="/employee/*" element={<EmployeePortalRedirect />} />
 
         {/* Employer Dashboard (Protected + Nested Routes) */}
         <Route

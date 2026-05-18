@@ -7,8 +7,6 @@ from sqlalchemy.orm import Session
 from database import db
 from models import User
 from config import settings
-import os
-import secrets
 
 
 class SecurityService:

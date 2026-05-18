@@ -35,6 +35,7 @@ from schemas import (
     BlockchainTxCreate,
     BlockchainTxUpdate,
     BlockchainTxResponse,
+    StreamDetailsResponse,
 )
 from security import SecurityService
 from service import (
@@ -588,6 +589,42 @@ def get_my_profile(
         },
         "total_earned": float(total_earned),
     }
+
+
+@router.get("/me/stream", response_model=StreamDetailsResponse)
+def get_my_stream(
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    """On-chain stream details for the logged-in employee (cached ≤30s)."""
+    emp = session.query(Employee).filter(Employee.email == current_user.email).first()
+    if not emp:
+        from stream_chain import _empty_stream
+
+        empty = _empty_stream(wallet_address=None)
+        return StreamDetailsResponse(employee_id=None, **empty)
+
+    from stream_chain import get_stream_details
+
+    details = get_stream_details(emp.wallet_address or "")
+    return StreamDetailsResponse(employee_id=emp.id, **details)
+
+
+@router.get("/streams/{employee_id}", response_model=StreamDetailsResponse)
+def get_employee_stream(
+    employee_id: int,
+    session: Session = Depends(db.get_db),
+    _: User = Depends(SecurityService.require_dashboard_user),
+):
+    """On-chain stream details for HR dashboard (cached ≤30s)."""
+    emp = session.query(Employee).filter(Employee.id == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    from stream_chain import get_stream_details
+
+    details = get_stream_details(emp.wallet_address or "")
+    return StreamDetailsResponse(employee_id=emp.id, **details)
 
 
 @router.put("/me/wallet")
