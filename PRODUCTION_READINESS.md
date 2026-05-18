@@ -61,6 +61,13 @@ Deploy tooling:
 - Startup migration helpers in `Backend/main.py`: they are convenient, but should be treated carefully in production operations.
 - Event sync paths: chain event ingestion exists, but it is not a substitute for a full indexing pipeline.
 
+## Remaining Blockers
+
+- End-to-end verification of real blockchain settlement is still missing; current backend tests do not confirm successful live chain transactions.
+- Reporting correctness is still tied to backend-recorded rows and should be manually checked against expected payroll scenarios before production rollout.
+- Treasury sync is intentionally non-operational until a real chain balance reader is implemented and verified.
+- Role-boundary smoke coverage now exists, but broader auth regression coverage is still limited.
+
 ## Routes And Services Not To Delete Casually
 
 Routes:
