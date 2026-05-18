@@ -157,6 +157,7 @@ export default function App() {
   }
 
   const totalEarned = profile?.total_earned ?? 0;
+  const displayName = profile?.employee?.name || profile?.name || 'User';
   const stats = useMemo(() => {
     const now = new Date();
     const monthlyIncome = transactions
@@ -216,11 +217,11 @@ export default function App() {
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-lg font-bold text-white shadow-lg">
-              {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
+              {displayName ? displayName.charAt(0).toUpperCase() : 'U'}
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">Employee Account</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{profile?.name || 'User'}</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{displayName}</p>
               <p className="text-sm text-slate-600">{profile?.email || '--'}</p>
             </div>
           </div>

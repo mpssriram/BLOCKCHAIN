@@ -83,7 +83,7 @@ def read_onchain_balance() -> Decimal:
     Placeholder for chain RPC integration.
     Replace this with an actual on-chain balance reader when the treasury wallet is wired.
     """
-    return Decimal("0.00")
+    raise NotImplementedError("Treasury on-chain sync is not implemented yet.")
 
 # =====================================================
 # EMPLOYEE SERVICE
@@ -254,13 +254,19 @@ class TreasurySyncService:
 
     @staticmethod
     def sync_onchain_balance(session: Session) -> Treasury:
+        try:
+            onchain_balance = read_onchain_balance()
+        except NotImplementedError as exc:
+            raise HTTPException(
+                status_code=501,
+                detail="Treasury on-chain sync is not implemented yet.",
+            ) from exc
+
         treasury = TreasuryService.get_or_create(session)
-        treasury.onchain_balance = read_onchain_balance()
+        treasury.onchain_balance = onchain_balance
         treasury.last_synced_at = datetime.utcnow()
         session.commit()
         session.refresh(treasury)
-        # APScheduler placeholder:
-        # scheduler.add_job(lambda: TreasurySyncService.sync_onchain_balance(session), "interval", minutes=5)
         return treasury
 
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ExternalLink, PauseCircle, Play, SquareX } from "lucide-react";
 import { cancelStream, getBlockchainConfig, getEmployee, pauseStream, recordStreamAction, startStream, updateEmployeeWallet } from "../../../app/api";

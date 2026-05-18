@@ -34,6 +34,7 @@ export default function Settings() {
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const [customRate, setCustomRate] = useState("");
   const [useCustom, setUseCustom] = useState(false);
+  const [employeeTaxError, setEmployeeTaxError] = useState("");
 
   useEffect(() => {
     loadData();
@@ -103,6 +104,12 @@ export default function Settings() {
   }
 
   async function handleEmployeeTaxUpdate() {
+    if (!selectedEmployee) {
+      setEmployeeTaxError("Select an employee before saving custom tax settings.");
+      return;
+    }
+
+    setEmployeeTaxError("");
     await setEmployeeTax(
       Number(selectedEmployee),
       useCustom,
@@ -279,7 +286,12 @@ export default function Settings() {
 
         <select
           value={selectedEmployee}
-          onChange={(e) => setSelectedEmployee(e.target.value)}
+          onChange={(e) => {
+            setSelectedEmployee(e.target.value);
+            if (e.target.value) {
+              setEmployeeTaxError("");
+            }
+          }}
           className="border p-2 rounded w-full mb-3"
         >
           <option value="">Select Employee</option>
@@ -307,6 +319,10 @@ export default function Settings() {
             onChange={(e) => setCustomRate(e.target.value)}
             className="border p-2 rounded w-full mb-3"
           />
+        )}
+
+        {employeeTaxError && (
+          <p className="mb-3 text-sm text-red-600">{employeeTaxError}</p>
         )}
 
         <button

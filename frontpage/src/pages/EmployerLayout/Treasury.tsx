@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getTreasury, depositTreasury, withdrawTreasury, getBlockchainConfig, getAuthRole } from "../../app/api";
 import { loginAndConnectContract, logoutWallet, isConnected, getConnectedAddress } from "../../blockchain/wallet";
 import { ethers } from "ethers";

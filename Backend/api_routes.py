@@ -5,13 +5,13 @@ All dashboard routes require JWT authentication (admin or employer role).
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from decimal import Decimal
 
 from database import db
-from export import export_csv, export_pdf
+from export import export_csv
 from models import (
     AdminActionLog,
     Employee,
@@ -73,7 +73,6 @@ from service import (
     ReportingService,
     TreasuryService,
     TreasurySyncService,
-    TaxService,
     DashboardService,
     PhaseOneService,
     StreamingService,
@@ -158,7 +157,7 @@ def _format_report_output(
         f"<table border='1'><tbody>{html_rows}</tbody></table>"
         "</body></html>"
     )
-    return Response(content=export_pdf(html), media_type="application/pdf")
+    return Response(content=html, media_type="text/html")
 
 
 # =========================
