@@ -7,7 +7,6 @@ import AutoLogin from "../pages/Auth/AutoLogin";
 import EmployeeLogin from "../pages/Auth/EmployeeLogin";
 import EmployerLogin from "../pages/Auth/EmployerLogin";
 import SetToken from "../pages/Auth/SetToken";
-/* Employer Pages */
 import Bonuses from "../pages/Employer/Bonuses";
 import EmployeeDetails from "../pages/Employer/EmployeeDetails";
 import Employees from "../pages/Employer/Employees";
