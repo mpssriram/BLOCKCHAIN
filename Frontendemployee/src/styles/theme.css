@@ -124,8 +124,14 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "ss01" on, "cv01" on, "cv10" on;
+    text-rendering: optimizeLegibility;
   }
 
   /**
@@ -177,5 +183,35 @@
     font-size: var(--text-base);
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
+  }
+}
+
+@layer utilities {
+  .employee-grid {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  .employee-shell {
+    background:
+      radial-gradient(circle at top left, rgba(34, 211, 238, 0.14), transparent 28%),
+      radial-gradient(circle at 86% 12%, rgba(16, 185, 129, 0.1), transparent 24%),
+      linear-gradient(145deg, #05101a 0%, #081321 34%, #0d1d30 100%);
+  }
+
+  .employee-panel {
+    background:
+      linear-gradient(180deg, rgba(9, 18, 31, 0.9) 0%, rgba(8, 15, 28, 0.78) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    box-shadow: 0 28px 100px rgba(2, 6, 23, 0.44);
+    backdrop-filter: blur(22px);
+  }
+
+  .employee-card {
+    background: rgba(15, 23, 42, 0.56);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    backdrop-filter: blur(16px);
   }
 }

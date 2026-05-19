@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { loginWithFirebase, redirectToEmployeePortal } from "../../app/auth";
+import { isDemoLoginEnabled, loginWithFirebase, redirectToEmployeePortal } from "../../lib/auth";
 
 export default function AutoLogin() {
   const location = useLocation();
@@ -12,17 +12,23 @@ export default function AutoLogin() {
     const destParam = params.get("dest");
     const employerDest = "/employer-dashboard/overview";
     const isDashboardRole = role === "employer" || role === "admin";
+    const fallbackUrl = isDashboardRole ? "/employer-login" : "/employee-login";
 
-    const demoEmployerEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL || "employer@test.com";
-    const demoEmployerPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD || "123456";
-    const demoEmployeeEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL || "employee@test.com";
-    const demoEmployeePassword = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_PASSWORD || "123456";
+    if (!isDemoLoginEnabled()) {
+      window.location.href = fallbackUrl;
+      return;
+    }
+
+    const demoEmployerEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYER_EMAIL || "";
+    const demoEmployerPassword = (import.meta as any).env?.VITE_DEMO_EMPLOYER_PASSWORD || "";
+    const demoEmployeeEmail = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_EMAIL || "";
+    const demoEmployeePassword = (import.meta as any).env?.VITE_DEMO_EMPLOYEE_PASSWORD || "";
 
     const email = isDashboardRole ? demoEmployerEmail : demoEmployeeEmail;
     const password = isDashboardRole ? demoEmployerPassword : demoEmployeePassword;
 
     if (!email || !password) {
-      setStatus("Demo credentials not configured");
+      setStatus("Demo login is enabled, but demo credentials are not configured.");
       return;
     }
 

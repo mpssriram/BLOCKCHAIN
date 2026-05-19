@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from decimal import Decimal
 
 
@@ -55,6 +55,31 @@ class TreasuryAction(BaseModel):
     amount: Decimal
 
 
+class TreasuryResponse(BaseModel):
+    id: int
+    total_balance: float
+    onchain_balance: float
+    last_tx_hash: Optional[str] = None
+    last_synced_at: Optional[str] = None
+
+
+class TreasuryHealthResponse(BaseModel):
+    balance: float
+    total_rate: float
+    runway_sec: float
+    status: Literal["safe", "warning", "critical"]
+    is_low_treasury: bool
+
+
+class TreasurySummaryResponse(BaseModel):
+    treasury: TreasuryResponse
+    health: TreasuryHealthResponse
+    total_recorded_payout: float
+    total_tax_collected: float
+    active_streams: int
+    recent_transactions: int
+
+
 # =====================================================
 # EMPLOYEES
 # =====================================================
@@ -71,6 +96,7 @@ class EmployeeResponse(BaseModel):
     email: str
     role: str
 
+    is_active: bool = True
     is_streaming: bool = False
     wallet_address: Optional[str] = None
     use_custom_tax: bool = False
@@ -169,6 +195,114 @@ class BlockchainTxResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class StreamActionRecordCreate(BaseModel):
+    employee_id: int
+    tx_hash: str
+    action: Literal["start", "pause", "cancel"]
+    rate_per_second_wei: Optional[str] = None
+
+
+class WithdrawalRecordCreate(BaseModel):
+    tx_hash: str
+    amount: Optional[Decimal] = None
+
+
+class PayrollIntentCreate(BaseModel):
+    idempotency_key: str
+    intent_type: Literal["start_stream", "pause_stream", "cancel_stream", "withdraw"]
+    employee_id: Optional[int] = None
+    amount: Optional[Decimal] = None
+    rate_per_second_wei: Optional[str] = None
+
+
+class PayrollIntentSubmitTxHash(BaseModel):
+    tx_hash: str
+
+
+class PayrollIntentResponse(BaseModel):
+    id: int
+    idempotency_key: str
+    intent_type: str
+    employee_id: Optional[int] = None
+    created_by_user_id: Optional[int] = None
+    amount: Optional[Decimal] = None
+    rate_per_second_wei: Optional[str] = None
+    tx_hash: Optional[str] = None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BlockchainEventSyncResponse(BaseModel):
+    from_block: int
+    to_block: int
+    processed_events: int
+    stream_started: int
+    withdrawals: int
+    updated_transactions: int
+    updated_payroll_events: int
+
+
+class AdminLogCreate(BaseModel):
+    action_type: str
+    target_employee_id: Optional[int] = None
+    tx_hash: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class AdminLogResponse(BaseModel):
+    id: int
+    admin_id: int
+    action_type: str
+    target_employee_id: Optional[int] = None
+    tx_hash: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+
+class EmailRequest(BaseModel):
+    to: EmailStr
+    subject: str
+    template: str
+    context: Dict[str, Any] = Field(default_factory=dict)
+
+
+class NotificationLogResponse(BaseModel):
+    id: int
+    channel: str
+    recipient: str
+    subject: Optional[str] = None
+    template_name: Optional[str] = None
+    status: str
+    metadata: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+
+class StreamHistoryItemResponse(BaseModel):
+    id: int
+    employee_id: int
+    event_type: str
+    amount: Optional[Decimal] = None
+    tx_hash: Optional[str] = None
+    block_number: Optional[int] = None
+    log_index: Optional[int] = None
+    metadata: Optional[Dict[str, Any]] = None
+    created_at: datetime
+
+
+class EmployeeReportResponse(BaseModel):
+    employee: EmployeeResponse
+    total_payout: float
+    total_tax: float
+    total_transactions: int
+    total_bonuses: int
+    stream_events: int
+    recent_transactions: List[TransactionResponse] = Field(default_factory=list)
+    stream_history: List[StreamHistoryItemResponse] = Field(default_factory=list)
 
 
 # =====================================================

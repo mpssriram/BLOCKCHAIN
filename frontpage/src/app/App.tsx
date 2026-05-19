@@ -1,35 +1,20 @@
-import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { redirectToEmployeePortal } from "./auth";
-
-/* Landing Page Components */
-import { Hero } from "./components/Hero";
-import { LoginCards } from "./components/LoginCards";
-import { TransactionsShowcase } from "./components/TransactionsShowcase";
-import { Features } from "./components/Features";
-import { Footer } from "./components/Footer";
-
-/* Auth Pages */
+import { useEffect } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { ProtectedRoute } from "../components/ui/ProtectedRoute";
+import { redirectToEmployeePortal } from "../lib/auth";
 import AuthChoice from "../pages/Auth/AuthChoice";
-import EmployerLogin from "../pages/Auth/EmployerLogin";
-import EmployeeLogin from "../pages/Auth/EmployeeLogin";
-import SetToken from "../pages/Auth/SetToken";
 import AutoLogin from "../pages/Auth/AutoLogin";
-
-/* Employer Dashboard Layout */
-import EmployerLayout from "../pages/EmployerLayout/Layout/EmployerDashboard";
-
-/* Employer Pages */
-import Overview from "../pages/EmployerLayout/Overview";
-import Employees from "../pages/EmployerLayout/Employees";
-import EmployeeDetails from "../pages/EmployerLayout/Layout/EmployeeDetails";
-import Treasury from "../pages/EmployerLayout/Treasury";
-import Bonuses from "../pages/EmployerLayout/Bonuses";
-import Settings from "../pages/EmployerLayout/Settings";
-
-/* Protected Route */
-import ProtectedRoute from "./components/ProtectedRoute";
-
+import EmployeeLogin from "../pages/Auth/EmployeeLogin";
+import EmployerLogin from "../pages/Auth/EmployerLogin";
+import SetToken from "../pages/Auth/SetToken";
+import Bonuses from "../pages/Employer/Bonuses";
+import EmployeeDetails from "../pages/Employer/EmployeeDetails";
+import Employees from "../pages/Employer/Employees";
+import Overview from "../pages/Employer/Overview";
+import Settings from "../pages/Employer/Settings";
+import Treasury from "../pages/Employer/Treasury";
+import LandingPage from "../pages/Marketing/LandingPage";
+import EmployerLayout from "../layouts/employer/EmployerDashboard";
 
 function EmployeePortalRedirect() {
   useEffect(() => {
@@ -37,21 +22,6 @@ function EmployeePortalRedirect() {
   }, []);
   return null;
 }
-
-/* Landing Page */
-function LandingPage() {
-  return (
-    <div className="min-h-screen">
-      <Hero />
-      <LoginCards />
-      <TransactionsShowcase />
-      <Features />
-      <Footer />
-    </div>
-  );
-}
-
-/* App */
 export default function App() {
   return (
     <BrowserRouter>

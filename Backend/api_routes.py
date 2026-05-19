@@ -2,17 +2,24 @@
 API routes for employer dashboard: employees, transactions, bonuses, treasury, dashboard, settings.
 All dashboard routes require JWT authentication (admin or employer role).
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from typing import List, Literal, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from decimal import Decimal
-from typing import List
 
 from database import db
+from export import export_csv
 from models import (
+    AdminActionLog,
     Employee,
+    NotificationLog,
     Transaction,
     Bonus,
+    PayrollEvent,
+    PayrollIntent,
     Treasury,
     CompanySettings,
     TaxSlab,
@@ -35,21 +42,206 @@ from schemas import (
     BlockchainTxCreate,
     BlockchainTxUpdate,
     BlockchainTxResponse,
+    BlockchainEventSyncResponse,
+    AdminLogCreate,
+    AdminLogResponse,
+    EmailRequest,
+    EmployeeReportResponse,
+    NotificationLogResponse,
+    PayrollIntentCreate,
+    PayrollIntentResponse,
+    PayrollIntentSubmitTxHash,
     StreamDetailsResponse,
+    StreamActionRecordCreate,
+    StreamHistoryItemResponse,
+    TreasuryHealthResponse,
+    TreasurySummaryResponse,
+    TreasuryResponse,
+    WithdrawalRecordCreate,
 )
 from security import SecurityService
 from service import (
+    AdminActionLogService,
+    EmailNotifier,
     EmployeeService,
     TransactionService,
     BonusService,
+    BlockchainEventSyncService,
+    NotificationService,
+    NotificationLogService,
+    PayrollIntentService,
+    ReportingService,
     TreasuryService,
-    TaxService,
+    TreasurySyncService,
     DashboardService,
+    PhaseOneService,
     StreamingService,
     BlockchainTxService,
 )
 
 router = APIRouter()
+
+
+def _serialize_admin_log(log: AdminActionLog) -> AdminLogResponse:
+    return AdminLogResponse(
+        id=log.id,
+        admin_id=log.admin_id,
+        action_type=log.action_type,
+        target_employee_id=log.target_employee_id,
+        tx_hash=log.tx_hash,
+        metadata=log.action_metadata,
+        created_at=log.created_at,
+    )
+
+
+def _serialize_payroll_intent(intent: PayrollIntent) -> PayrollIntentResponse:
+    return PayrollIntentResponse(
+        id=intent.id,
+        idempotency_key=intent.idempotency_key,
+        intent_type=intent.intent_type,
+        employee_id=intent.employee_id,
+        created_by_user_id=intent.created_by_user_id,
+        amount=intent.amount,
+        rate_per_second_wei=intent.rate_per_second_wei,
+        tx_hash=intent.tx_hash,
+        status=intent.status,
+        created_at=intent.created_at,
+        updated_at=intent.updated_at,
+    )
+
+
+def _serialize_notification_log(log: NotificationLog) -> NotificationLogResponse:
+    return NotificationLogResponse(
+        id=log.id,
+        channel=log.channel,
+        recipient=log.recipient,
+        subject=log.subject,
+        template_name=log.template_name,
+        status=log.status,
+        metadata=log.notification_metadata,
+        created_at=log.created_at,
+    )
+
+
+def _serialize_stream_history_item(event: PayrollEvent) -> StreamHistoryItemResponse:
+    return StreamHistoryItemResponse(
+        id=event.id,
+        employee_id=event.employee_id,
+        event_type=event.event_type,
+        amount=event.amount,
+        tx_hash=event.tx_hash,
+        block_number=event.block_number,
+        log_index=event.log_index,
+        metadata=event.event_metadata,
+        created_at=event.created_at,
+    )
+
+
+def _format_report_output(
+    payload: dict,
+    rows: List[dict],
+    output_format: Literal["json", "csv", "pdf"],
+) -> dict | Response:
+    if output_format == "json":
+        return payload
+    if output_format == "csv":
+        return Response(content=export_csv(rows), media_type="text/csv")
+
+    html_rows = "".join(
+        "<tr>" + "".join(f"<td>{value}</td>" for value in row.values()) + "</tr>"
+        for row in rows
+    )
+    html = (
+        "<html><body>"
+        f"<h1>Report</h1><pre>{payload}</pre>"
+        f"<table border='1'><tbody>{html_rows}</tbody></table>"
+        "</body></html>"
+    )
+    return Response(content=html, media_type="text/html")
+
+
+# =========================
+# PAYROLL INTENTS
+# =========================
+
+@router.post("/payroll/intents", response_model=PayrollIntentResponse, status_code=201)
+def create_payroll_intent(
+    data: PayrollIntentCreate,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    """Create or replay an idempotent payroll intent before tx submission."""
+    intent = PayrollIntentService.create_intent(
+        session,
+        idempotency_key=data.idempotency_key,
+        intent_type=data.intent_type,
+        employee_id=data.employee_id,
+        created_by_user_id=current_user.id,
+        amount=data.amount,
+        rate_per_second_wei=data.rate_per_second_wei,
+    )
+    return _serialize_payroll_intent(intent)
+
+
+@router.get("/payroll/intents", response_model=List[PayrollIntentResponse])
+def list_payroll_intents(
+    employee_id: Optional[int] = None,
+    status: Optional[str] = None,
+    intent_type: Optional[str] = None,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """List payroll intents for Phase 2 transaction lifecycle tracking."""
+    intents = PayrollIntentService.list_intents(
+        session,
+        employee_id=employee_id,
+        status=status,
+        intent_type=intent_type,
+    )
+    return [_serialize_payroll_intent(intent) for intent in intents]
+
+
+@router.get("/payroll/intents/{intent_id}", response_model=PayrollIntentResponse)
+def get_payroll_intent(
+    intent_id: int,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    """Get a single payroll intent by id."""
+    intent = PayrollIntentService.get_intent(session, intent_id)
+    return _serialize_payroll_intent(intent)
+
+
+@router.post("/payroll/intents/{intent_id}/submit-hash", response_model=PayrollIntentResponse)
+def submit_payroll_intent_hash(
+    intent_id: int,
+    data: PayrollIntentSubmitTxHash,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    """Attach a tx hash to an intent and begin backend status tracking."""
+    intent = PayrollIntentService.submit_tx_hash(
+        session,
+        intent_id=intent_id,
+        tx_hash=data.tx_hash,
+    )
+    return _serialize_payroll_intent(intent)
+
+
+@router.post("/blockchain/sync-events", response_model=BlockchainEventSyncResponse)
+def sync_blockchain_events(
+    from_block: Optional[int] = None,
+    to_block: Optional[int] = None,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_admin),
+):
+    """Sync StreamStarted and Withdrawal events from chain into backend records."""
+    result = BlockchainEventSyncService.sync_events(
+        session,
+        from_block=from_block,
+        to_block=to_block,
+    )
+    return BlockchainEventSyncResponse(**result)
 
 
 # =========================
@@ -68,6 +260,7 @@ def list_employees(
             name=e.name,
             email=e.email,
             role=e.role,
+            is_active=e.is_active if e.is_active is not None else True,
             is_streaming=e.is_streaming or False,
             wallet_address=e.wallet_address,
             use_custom_tax=e.use_custom_tax or False,
@@ -93,6 +286,7 @@ def create_employee(
             name=emp.name,
             email=emp.email,
             role=emp.role,
+            is_active=emp.is_active if emp.is_active is not None else True,
             is_streaming=emp.is_streaming or False,
             wallet_address=emp.wallet_address,
             use_custom_tax=emp.use_custom_tax or False,
@@ -128,6 +322,7 @@ def get_employee(
         name=emp.name,
         email=emp.email,
         role=emp.role,
+        is_active=emp.is_active if emp.is_active is not None else True,
         is_streaming=emp.is_streaming or False,
         wallet_address=emp.wallet_address,
         use_custom_tax=emp.use_custom_tax or False,
@@ -192,6 +387,44 @@ def update_employee_tax(
     return {"message": "Tax updated"}
 
 
+@router.patch("/employees/{employee_id}/deactivate")
+def deactivate_employee(
+    employee_id: int,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Deactivate an employee without removing their records."""
+    emp = EmployeeService.get_employee(session, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    emp.is_active = False
+    session.commit()
+    return {"message": "Employee deactivated"}
+
+
+@router.delete("/employees/{employee_id}")
+def delete_employee(
+    employee_id: int,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Delete an employee only when no payroll events are attached."""
+    emp = EmployeeService.get_employee(session, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    has_events = (
+        session.query(func.count())
+        .select_from(PayrollEvent)
+        .filter(PayrollEvent.employee_id == employee_id)
+        .scalar()
+    )
+    if has_events:
+        raise HTTPException(status_code=400, detail="Cannot delete employee with payroll events")
+    session.delete(emp)
+    session.commit()
+    return {"message": "Employee deleted"}
+
+
 # =========================
 # STREAM
 # =========================
@@ -237,6 +470,28 @@ def upsert_stream_tx_status(
         raise HTTPException(status_code=400, detail="tx_type is required")
     status_val = (data.status or "pending").strip()
     tx = BlockchainTxService.upsert_tx(session, tx_hash=tx_hash, tx_type=tx_type, status=status_val)
+    return BlockchainTxResponse(
+        tx_hash=tx.tx_hash,
+        tx_type=tx.tx_type,
+        status=tx.status,
+        created_at=tx.created_at,
+    )
+
+
+@router.post("/stream/record", response_model=BlockchainTxResponse, status_code=201)
+def record_stream_action(
+    data: StreamActionRecordCreate,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Persist a basic backend record after a confirmed on-chain stream action."""
+    tx = PhaseOneService.record_stream_action(
+        session,
+        employee_id=data.employee_id,
+        tx_hash=data.tx_hash,
+        action=data.action,
+        rate_per_second_wei=data.rate_per_second_wei,
+    )
     return BlockchainTxResponse(
         tx_hash=tx.tx_hash,
         tx_type=tx.tx_type,
@@ -349,19 +604,42 @@ def give_bonus(
 # TREASURY
 # =========================
 
-@router.get("/treasury")
+@router.get("/treasury", response_model=TreasuryResponse)
 def get_treasury(
     session: Session = Depends(db.get_db),
     current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
+    """Return the current treasury state."""
     treasury = TreasuryService.get_or_create(session)
-    return {
-        "id": treasury.id,
-        "total_balance": float(treasury.total_balance),
-        "onchain_balance": float(treasury.onchain_balance),
-        "last_tx_hash": treasury.last_tx_hash,
-        "last_synced_at": treasury.last_synced_at.isoformat() if treasury.last_synced_at else None,
-    }
+    return TreasuryService.serialize_treasury(treasury)
+
+
+@router.get("/treasury/health", response_model=TreasuryHealthResponse)
+def get_treasury_health(
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Return treasury runway health based on active stream load."""
+    return TreasuryService.health_summary(session)
+
+
+@router.get("/treasury/summary", response_model=TreasurySummaryResponse)
+def get_treasury_summary(
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Return a high-level treasury summary for dashboard reporting."""
+    return TreasuryService.summary(session)
+
+
+@router.post("/treasury/sync", response_model=TreasuryResponse)
+def sync_treasury(
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Sync the treasury's on-chain balance into the local record."""
+    treasury = TreasurySyncService.sync_onchain_balance(session)
+    return TreasuryService.serialize_treasury(treasury)
 
 
 @router.post("/treasury/deposit")
@@ -372,11 +650,7 @@ def deposit_treasury(
 ):
     try:
         treasury = TreasuryService.deposit_web2(session, float(data.amount))
-        return {
-            "id": treasury.id,
-            "total_balance": float(treasury.total_balance),
-            "onchain_balance": float(treasury.onchain_balance),
-        }
+        return TreasuryService.serialize_treasury(treasury)
     except HTTPException:
         raise
 
@@ -389,13 +663,49 @@ def withdraw_treasury(
 ):
     try:
         treasury = TreasuryService.withdraw_web2(session, float(data.amount))
-        return {
-            "id": treasury.id,
-            "total_balance": float(treasury.total_balance),
-            "onchain_balance": float(treasury.onchain_balance),
-        }
+        return TreasuryService.serialize_treasury(treasury)
     except HTTPException:
         raise
+
+
+@router.post("/admin/logs", response_model=AdminLogResponse, status_code=201)
+def create_admin_log(
+    data: AdminLogCreate,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Create an admin action log entry for dashboard operations."""
+    log = AdminActionLogService.create_log(
+        session,
+        admin_id=current_user.id,
+        action_type=data.action_type,
+        target_employee_id=data.target_employee_id,
+        tx_hash=data.tx_hash,
+        metadata=data.metadata,
+    )
+    return _serialize_admin_log(log)
+
+
+@router.get("/admin/logs", response_model=List[AdminLogResponse])
+def list_admin_logs(
+    admin_id: Optional[int] = None,
+    action_type: Optional[str] = None,
+    employee_id: Optional[int] = None,
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """List admin logs with optional filters for actor, action, employee, and date range."""
+    logs = AdminActionLogService.list_logs(
+        session,
+        admin_id=admin_id,
+        action_type=action_type,
+        employee_id=employee_id,
+        start=start,
+        end=end,
+    )
+    return [_serialize_admin_log(log) for log in logs]
 
 
 # =========================
@@ -440,6 +750,137 @@ def monthly_summary(
     current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     return DashboardService.monthly_summary(session)
+
+
+@router.get("/reports/monthly")
+def monthly_report(
+    year: int,
+    month: int,
+    format: Literal["json", "csv", "pdf"] = Query(default="json"),
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Return monthly payout and tax totals with per-employee breakdown."""
+    payload = DashboardService.monthly_report(session, year, month)
+    rows = payload["breakdown"]
+    return _format_report_output(payload, rows, format)
+
+
+@router.get("/reports/employees/{employee_id}", response_model=EmployeeReportResponse)
+def employee_report(
+    employee_id: int,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Return an employee payout and stream activity report."""
+    payload = ReportingService.employee_report(session, employee_id)
+    employee = payload["employee"]
+    employee_response = EmployeeResponse(
+        id=employee.id,
+        name=employee.name,
+        email=employee.email,
+        role=employee.role,
+        is_active=employee.is_active if employee.is_active is not None else True,
+        is_streaming=employee.is_streaming or False,
+        wallet_address=employee.wallet_address,
+        use_custom_tax=employee.use_custom_tax or False,
+        custom_tax_rate=employee.custom_tax_rate,
+        transactions=[],
+    )
+    return EmployeeReportResponse(
+        employee=employee_response,
+        total_payout=payload["total_payout"],
+        total_tax=payload["total_tax"],
+        total_transactions=payload["total_transactions"],
+        total_bonuses=payload["total_bonuses"],
+        stream_events=payload["stream_events"],
+        recent_transactions=[
+            TransactionResponse(
+                id=t.id,
+                employee_id=t.employee_id,
+                amount=t.amount,
+                tax_amount=t.tax_amount,
+                description=t.description or "",
+                timestamp=t.timestamp,
+            )
+            for t in payload["recent_transactions"]
+        ],
+        stream_history=[_serialize_stream_history_item(event) for event in payload["stream_history"]],
+    )
+
+
+@router.get("/reports/tax")
+def tax_report(
+    year: int,
+    month: int,
+    format: Literal["json", "csv", "pdf"] = Query(default="json"),
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Return monthly tax collection totals and configured slab information."""
+    payload = DashboardService.tax_report(session, year, month)
+    rows = payload["tax_slabs"]
+    return _format_report_output(payload, rows, format)
+
+
+@router.post("/notifications/email")
+def send_email_notification(
+    data: EmailRequest,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Send a templated HTML email notification through SMTP."""
+    from os import environ
+
+    smtp_server = environ.get("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(environ.get("SMTP_PORT", "587"))
+    username = environ.get("SMTP_USERNAME", "")
+    password = environ.get("SMTP_PASSWORD", "")
+    if not username:
+        raise HTTPException(status_code=500, detail="SMTP credentials are not configured")
+
+    html_body = NotificationService.render_template(data.template, data.context)
+    notifier = EmailNotifier(smtp_server, smtp_port, username, password)
+    notifier.send(str(data.to), data.subject, html_body)
+    NotificationLogService.create_log(
+        session,
+        channel="email",
+        recipient=str(data.to),
+        subject=data.subject,
+        template_name=data.template,
+        status="sent",
+        metadata=data.context,
+    )
+    return {"message": "Email sent successfully"}
+
+
+@router.get("/notifications", response_model=List[NotificationLogResponse])
+def list_notifications(
+    channel: Optional[str] = None,
+    recipient: Optional[str] = None,
+    status: Optional[str] = None,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """List sent notifications with basic filtering."""
+    logs = NotificationLogService.list_logs(
+        session,
+        channel=channel,
+        recipient=recipient,
+        status=status,
+    )
+    return [_serialize_notification_log(log) for log in logs]
+
+
+@router.get("/streams/history", response_model=List[StreamHistoryItemResponse])
+def get_stream_history(
+    employee_id: Optional[int] = None,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
+):
+    """Return stream-related payroll history across the system or for one employee."""
+    events = ReportingService.stream_history(session, employee_id=employee_id)
+    return [_serialize_stream_history_item(event) for event in events]
 
 
 # =========================
@@ -643,3 +1084,24 @@ def update_my_wallet(
     session.commit()
     session.refresh(emp)
     return {"message": "Wallet updated", "wallet_address": emp.wallet_address}
+
+
+@router.post("/me/withdrawals/record", response_model=BlockchainTxResponse, status_code=201)
+def record_my_withdrawal(
+    data: WithdrawalRecordCreate,
+    session: Session = Depends(db.get_db),
+    current_user: User = Depends(SecurityService.get_current_user),
+):
+    """Persist a basic backend record after an employee confirms an on-chain withdrawal."""
+    tx = PhaseOneService.record_withdrawal(
+        session,
+        employee_email=current_user.email,
+        tx_hash=data.tx_hash,
+        amount=data.amount,
+    )
+    return BlockchainTxResponse(
+        tx_hash=tx.tx_hash,
+        tx_type=tx.tx_type,
+        status=tx.status,
+        created_at=tx.created_at,
+    )

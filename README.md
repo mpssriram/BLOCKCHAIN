@@ -8,6 +8,33 @@ It includes:
 - an employee portal for wallet linking, claimable balance checks, and withdrawals
 - a Python backend for auth, employee records, treasury metadata, and tax settings
 
+## Demo Mode
+
+Demo/test surfaces are disabled by default in production-oriented setups.
+
+Backend:
+
+```env
+ENABLE_DEMO_SEED=false
+```
+
+Frontend:
+
+```env
+VITE_ENABLE_DEMO_LOGIN=false
+VITE_DEMO_EMPLOYER_EMAIL=
+VITE_DEMO_EMPLOYER_PASSWORD=
+VITE_DEMO_EMPLOYEE_EMAIL=
+VITE_DEMO_EMPLOYEE_PASSWORD=
+```
+
+Behavior:
+
+- When `ENABLE_DEMO_SEED=false`, backend startup does not create demo/test users or employees.
+- When `VITE_ENABLE_DEMO_LOGIN=false`, demo login buttons stay hidden.
+- When `VITE_ENABLE_DEMO_LOGIN=false`, `/auto-login` is not available as a demo shortcut and redirects to the normal login flow.
+- Demo credentials are only read from env vars when demo mode is explicitly enabled.
+
 ## Current Product Scope
 
 What is working in the repo now:
@@ -157,6 +184,22 @@ ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
 ENABLE_DEMO_SEED=false
 ```
 
+Keep `ENABLE_DEMO_SEED=false` for normal and production deployments. Only set it to `true` for an intentional demo environment.
+
+### 3. Frontend demo login env
+
+If you want to enable demo login buttons and `/auto-login` in a non-production demo environment, add these shared Vite vars:
+
+```env
+VITE_ENABLE_DEMO_LOGIN=true
+VITE_DEMO_EMPLOYER_EMAIL=demo-employer@example.com
+VITE_DEMO_EMPLOYER_PASSWORD=replace-me
+VITE_DEMO_EMPLOYEE_EMAIL=demo-employee@example.com
+VITE_DEMO_EMPLOYEE_PASSWORD=replace-me
+```
+
+Leave `VITE_ENABLE_DEMO_LOGIN=false` or unset it for normal and production deployments.
+
 ## Running the Backend
 
 ```bash
@@ -175,6 +218,18 @@ For local development, you can now start the backend plus both frontend dev serv
 
 ```bash
 python dev_all.py
+```
+
+To run the full verification suite from the repo root:
+
+```bash
+python check_project.py
+```
+
+Or from a shell-oriented workflow:
+
+```bash
+./scripts/check_project.sh
 ```
 
 On Windows, you can also double-click:
