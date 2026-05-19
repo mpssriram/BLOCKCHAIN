@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 import base64
 import json
+import logging
 import os
 from functools import lru_cache
 
@@ -23,6 +24,7 @@ except Exception:  # pragma: no cover - optional dependency until installed
 
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _decode_service_account(raw_value: str) -> dict:
@@ -75,9 +77,13 @@ def firebase_login(payload: FirebaseTokenExchange, session: Session = Depends(db
     _get_firebase_app()
 
     try:
-        decoded = firebase_auth.verify_id_token(payload.id_token)
+        decoded = firebase_auth.verify_id_token(payload.id_token, check_revoked=False, clock_skew_seconds=60)
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Firebase token") from exc
+        logger.exception("Firebase token verification failed")
+        detail = "Invalid Firebase token"
+        if settings.APP_ENV != "production":
+            detail = f"Invalid Firebase token: {exc}"
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail) from exc
 
     email = decoded.get("email")
     if not email:

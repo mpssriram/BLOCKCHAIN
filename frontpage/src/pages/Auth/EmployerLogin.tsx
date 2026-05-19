@@ -14,8 +14,8 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { isDemoLoginEnabled, loginWithFirebase, loginWithGoogle } from "../../app/auth";
-import { TowerLoader } from "../../app/components/TowerLoader";
+import { TowerLoader } from "../../components/ui/TowerLoader";
+import { isDemoLoginEnabled, loginWithFirebase, loginWithGoogle } from "../../lib/auth";
 
 const highlights = [
   {
@@ -35,10 +35,19 @@ const highlights = [
   },
 ];
 
-const streamPreview = [
-  { name: "Maya Chen", status: "Streaming", amount: "1,284 HLUSD" },
-  { name: "Arjun Rao", status: "Claimable", amount: "2,048 HLUSD" },
-  { name: "Iris Stone", status: "Active", amount: "764 HLUSD" },
+const consolePreview = [
+  {
+    title: "Treasury readiness",
+    detail: "Review backend-recorded balances before funding wallet actions.",
+  },
+  {
+    title: "Employee stream controls",
+    detail: "Start, pause, and cancel payroll flows from the employer workspace.",
+  },
+  {
+    title: "Recorded reporting",
+    detail: "Use backend reports and activity logs for payroll operations context.",
+  },
 ];
 
 export default function EmployerLogin() {
@@ -111,12 +120,12 @@ export default function EmployerLogin() {
 
   return (
     <motion.div
-      className="relative min-h-screen overflow-hidden bg-[#050b10] text-white"
+      className="premium-auth-shell relative min-h-screen overflow-hidden text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Ambient background */}
+      <div className="premium-grid absolute inset-0 opacity-[0.35]" />
       <motion.div
         className="pointer-events-none absolute -left-32 top-0 h-[520px] w-[520px] rounded-full bg-emerald-500/20 blur-[120px]"
         animate={{ x: [0, 40, 0], y: [0, 24, 0] }}
@@ -132,11 +141,6 @@ export default function EmployerLogin() {
         animate={{ scale: [1, 1.08, 1] }}
         transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
       />
-      <motion.div
-        className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:56px_56px]"
-        animate={{ backgroundPosition: ["0px 0px", "56px 56px"] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      />
 
       <motion.div
         className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8"
@@ -150,7 +154,6 @@ export default function EmployerLogin() {
           </div>
         ) : null}
 
-        {/* Top bar */}
         <header className="mb-8 flex items-center justify-between">
           <Link
             to="/"
@@ -180,14 +183,13 @@ export default function EmployerLogin() {
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-10 lg:flex-row lg:gap-16 xl:gap-24">
-          {/* Login card */}
           <motion.div
             className="w-full max-w-[440px] shrink-0"
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.1 }}
           >
-            <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-8 shadow-[0_32px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-10">
+            <div className="premium-surface rounded-[28px] p-8 sm:p-10">
               <div className="mb-8">
                 <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
                   <Sparkles className="h-3.5 w-3.5" />
@@ -312,13 +314,12 @@ export default function EmployerLogin() {
               <p className="mt-8 text-center text-xs text-slate-500">
                 Not an employer?{" "}
                 <Link to="/employee-login" className="font-medium text-emerald-400 hover:text-emerald-300">
-                  Employee portal →
+                  Employee portal &rarr;
                 </Link>
               </p>
             </div>
           </motion.div>
 
-          {/* Right panel — desktop */}
           <motion.div
             className="hidden w-full max-w-lg flex-col lg:flex"
             initial={{ opacity: 0, x: 32 }}
@@ -330,7 +331,7 @@ export default function EmployerLogin() {
                 Run payroll like a live feed.
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                Chief gives you treasury visibility, stream controls, and HeLa-native settlement —
+                Chief gives you treasury visibility, stream controls, and HeLa-native settlement -
                 built for operators who need clarity, not clutter.
               </p>
 
@@ -365,13 +366,13 @@ export default function EmployerLogin() {
                   transition={{ delay: 0.5 }}
                 >
                   <p className="text-xs font-medium uppercase tracking-[0.22em] text-slate-500">
-                    Live streams preview
+                    Employer workspace preview
                   </p>
                 </motion.div>
                 <div className="divide-y divide-white/5">
-                  {streamPreview.map((row, i) => (
+                  {consolePreview.map((row, i) => (
                     <motion.div
-                      key={row.name}
+                      key={row.title}
                       className="flex items-center justify-between px-4 py-3.5"
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -381,10 +382,10 @@ export default function EmployerLogin() {
                         animate={{ opacity: [0.85, 1, 0.85] }}
                         transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
                       >
-                        <p className="text-sm font-medium text-white">{row.name}</p>
-                        <p className="text-xs text-slate-500">{row.status}</p>
+                        <p className="text-sm font-medium text-white">{row.title}</p>
+                        <p className="text-xs text-slate-500">{row.detail}</p>
                       </motion.div>
-                      <span className="text-sm font-semibold text-emerald-300">{row.amount}</span>
+                      <span className="text-sm font-semibold text-emerald-300">Visible</span>
                     </motion.div>
                   ))}
                 </div>

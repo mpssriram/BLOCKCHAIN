@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { getEmployeePortalUrl } from "../../app/auth";
+import { getEmployeePortalUrl } from "../../lib/auth";
 
 export default function SetToken() {
   const location = useLocation();

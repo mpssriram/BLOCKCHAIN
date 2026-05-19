@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { isDemoLoginEnabled, loginWithFirebase, redirectToEmployeePortal } from "../../app/auth";
+import { isDemoLoginEnabled, loginWithFirebase, redirectToEmployeePortal } from "../../lib/auth";
 
 export default function AutoLogin() {
   const location = useLocation();

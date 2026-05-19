@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Activity, Ban, CircleOff, Pause, TrendingUp } from "lucide-react";
 import { ethers } from "ethers";
-import { getMyStream, type StreamDetails } from "../../api";
-import { TowerLoader } from "../TowerLoader";
+import { TowerLoader } from "../../../components/ui/TowerLoader";
+import { getMyStream, type StreamDetails } from "../../../lib/api";
 
 const POLL_MS = 30_000;
 const TICK_MS = 1_000;
