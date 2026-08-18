@@ -17,7 +17,6 @@ from security import SecurityService
 
 app = FastAPI()
 
-
 def validate_security_settings() -> None:
     if settings.APP_ENV.lower() != "production":
         return
@@ -33,6 +32,7 @@ def get_allowed_origins() -> list[str]:
 ALLOWED_ORIGINS = get_allowed_origins()
 ALLOW_CREDENTIALS = ALLOWED_ORIGINS != ["*"]
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# Add the wallet address column for databases created before wallet support existed.
 def ensure_wallet_address_column() -> None:
     if not db.is_configured:
         return

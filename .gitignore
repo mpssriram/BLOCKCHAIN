@@ -52,6 +52,10 @@ Backend/.env
 deploy/.env
 Backend/firebase-service-account.json
 Backend/*-firebase-adminsdk-*.json
+*.pem
+*.key
+*.p12
+*-service-account.json
 
 # Packaged dependency archives
 *.tgz
