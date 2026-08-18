@@ -168,7 +168,7 @@ def _format_report_output(
 def create_payroll_intent(
     data: PayrollIntentCreate,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.get_current_user),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     """Create or replay an idempotent payroll intent before tx submission."""
     intent = PayrollIntentService.create_intent(
@@ -205,7 +205,7 @@ def list_payroll_intents(
 def get_payroll_intent(
     intent_id: int,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.get_current_user),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     """Get a single payroll intent by id."""
     intent = PayrollIntentService.get_intent(session, intent_id)
@@ -217,7 +217,7 @@ def submit_payroll_intent_hash(
     intent_id: int,
     data: PayrollIntentSubmitTxHash,
     session: Session = Depends(db.get_db),
-    current_user: User = Depends(SecurityService.get_current_user),
+    current_user: User = Depends(SecurityService.require_dashboard_user),
 ):
     """Attach a tx hash to an intent and begin backend status tracking."""
     intent = PayrollIntentService.submit_tx_hash(
@@ -398,6 +398,9 @@ def deactivate_employee(
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     emp.is_active = False
+    user = session.query(User).filter(User.email == emp.email).first()
+    if user:
+        user.session_version += 1
     session.commit()
     return {"message": "Employee deactivated"}
 

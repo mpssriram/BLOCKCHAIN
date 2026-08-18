@@ -1,14 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
 import {
   Activity,
-  ArrowUpRight,
-  BarChart3,
-  BriefcaseBusiness,
   CircleDollarSign,
   Landmark,
   ShieldCheck,
-  Wallet,
 } from "lucide-react";
 import {
   Area,
@@ -131,8 +126,7 @@ function Overview() {
     <PageShell>
       <PageHeader
         eyebrow="Overview"
-        title="Executive payroll dashboard"
-        description="A clear operating picture of payouts, tax movement, treasury readiness, and the split between contract-driven state and backend reporting."
+        title="Overview"
       />
 
       {loading ? <LoadingState label="Loading payroll dashboard..." /> : null}
@@ -144,21 +138,18 @@ function Overview() {
             <StatCard
               label="Total payout"
               value={`Rs ${formatCurrency(totalPayout)}`}
-              detail="Backend-recorded cumulative net payouts."
               icon={CircleDollarSign}
               accent="cyan"
             />
             <StatCard
               label="Total tax"
               value={`Rs ${formatCurrency(totalTax)}`}
-              detail="Backend-recorded tax collected across payroll actions."
               icon={ShieldCheck}
               accent="emerald"
             />
             <StatCard
               label="Active streams"
               value={String(activeStreams)}
-              detail="Employees currently marked as receiving active payroll flows."
               icon={Activity}
               accent="violet"
             />
@@ -173,9 +164,7 @@ function Overview() {
 
           <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
             <SectionCard
-              eyebrow="Monthly summary"
-              title="Recorded payroll flow over time"
-              description="This chart reflects backend summary data, not direct on-chain indexing."
+              title="Monthly payroll"
             >
               {monthlySummary.length === 0 ? (
                 <EmptyState
@@ -217,59 +206,25 @@ function Overview() {
               )}
             </SectionCard>
 
-            <SectionCard
-              eyebrow="System state"
-              title="Source-of-truth clarity"
-              description="Keep operational expectations aligned across contract state, backend records, and frontend wallet actions."
-            >
-              <div className="space-y-4">
-                {[
-                  {
-                    title: "Contract = live payroll state",
-                    body: "Smart-contract logic determines live stream status, claimable salary, withdrawals, and treasury/tax movement.",
-                    icon: Wallet,
-                  },
-                  {
-                    title: "Backend = records and reporting",
-                    body: "Auth, dashboards, reports, notifications, and audit logs are maintained in application state.",
-                    icon: BriefcaseBusiness,
-                  },
-                  {
-                    title: "Frontend = action surface",
-                    body: "This dashboard initiates wallet-connected actions and reads backend data without replacing source-of-truth systems.",
-                    icon: ArrowUpRight,
-                  },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <motion.div
-                      key={item.title}
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.28 }}
-                      className="rounded-[1.45rem] border border-white/8 bg-white/[0.03] p-4"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-300/12 text-cyan-200">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-white">{item.title}</p>
-                          <p className="mt-2 text-sm leading-7 text-slate-300">{item.body}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+            <SectionCard title="Treasury health">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+                  <p className="text-sm text-slate-400">Available balance</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">
+                    Rs {formatCurrency(Number(treasurySummary?.treasury?.onchain_balance || 0))}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-white/8 bg-white/[0.03] p-4">
+                  <p className="text-sm text-slate-400">Status</p>
+                  <div className="mt-2"><StatusBadge tone={healthTone}>{treasurySummary?.health?.status || "unknown"}</StatusBadge></div>
+                </div>
               </div>
             </SectionCard>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
             <SectionCard
-              eyebrow="Top earners"
-              title="Net payout distribution"
-              description="A quick view of current top earners from backend payout records."
+              title="Top earners"
             >
               {topEarnersPie.length === 0 ? (
                 <EmptyState
@@ -320,9 +275,7 @@ function Overview() {
             </SectionCard>
 
             <SectionCard
-              eyebrow="Payroll activity"
-              title="Treasury and reporting health"
-              description="A concise summary of treasury health and backend-recorded activity volume."
+              title="Activity"
             >
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-[1.45rem] border border-white/8 bg-white/[0.03] p-5">
@@ -335,29 +288,11 @@ function Overview() {
                   <p className="mt-4 text-2xl font-semibold text-white">
                     Rs {formatCurrency(Number(treasurySummary?.treasury?.onchain_balance || 0))}
                   </p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300">
-                    Backend summary of recorded on-chain treasury value and payroll readiness.
-                  </p>
                 </div>
 
                 <div className="rounded-[1.45rem] border border-white/8 bg-white/[0.03] p-5">
                   <p className="text-sm font-medium text-slate-300">Recent transaction count</p>
                   <p className="mt-4 text-2xl font-semibold text-white">{Number(treasurySummary?.recent_transactions || 0)}</p>
-                  <p className="mt-2 text-sm leading-7 text-slate-300">
-                    Number of backend-recorded transaction entries contributing to the reporting surface.
-                  </p>
-                </div>
-
-                <div className="rounded-[1.45rem] border border-white/8 bg-white/[0.03] p-5 md:col-span-2">
-                  <div className="flex items-center gap-3">
-                    <BarChart3 className="h-5 w-5 text-cyan-300" />
-                    <p className="font-semibold text-white">Operational notes</p>
-                  </div>
-                  <ul className="mt-4 space-y-3 text-sm leading-7 text-slate-300">
-                    <li>Reports and dashboard metrics are based on backend records unless a separate chain index exists.</li>
-                    <li>Live payroll state still belongs to the contract even when the dashboard summarizes treasury or stream posture.</li>
-                    <li>Use treasury sync and stream-specific views carefully when distinguishing backend state from chain state.</li>
-                  </ul>
                 </div>
               </div>
             </SectionCard>

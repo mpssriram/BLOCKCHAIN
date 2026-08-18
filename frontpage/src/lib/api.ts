@@ -23,6 +23,17 @@ async function apiRequest(path: string, options: RequestInit = {}) {
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("firebaseToken");
+      localStorage.removeItem("firebaseUid");
+      localStorage.removeItem("firebaseEmail");
+      if (!window.location.pathname.includes("login")) {
+        window.location.assign("/employer-login");
+      }
+      throw new Error("Your session has expired. Please sign in again.");
+    }
+
     let errorMessage = "Request failed";
     try {
       const err = await res.json();
@@ -37,10 +48,11 @@ async function apiRequest(path: string, options: RequestInit = {}) {
 /* =========================
    LOGIN
 ========================= */
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string, roleHint: string) {
   const formData = new URLSearchParams();
   formData.append("username", email);
   formData.append("password", password);
+  formData.append("role_hint", roleHint);
 
   const res = await fetch(`${BASE_URL}/api/login`, {
     method: "POST",
@@ -51,10 +63,41 @@ export async function login(email: string, password: string) {
   });
 
   if (!res.ok) {
-    throw new Error("Invalid credentials");
+    try {
+      const error = await res.json();
+      throw new Error(error.detail || "Invalid credentials");
+    } catch (error) {
+      if (error instanceof Error) throw error;
+      throw new Error("Invalid credentials");
+    }
   }
 
   return res.json(); // { access_token, token_type, ... }
+}
+
+export async function createEmployeePortalHandoff() {
+  return apiRequest("/api/portal-handoff", { method: "POST" });
+}
+
+export async function requestPasswordReset(email: string) {
+  return apiRequest("/api/password-reset/request", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function confirmPasswordReset(token: string, password: string) {
+  return apiRequest("/api/password-reset/confirm", {
+    method: "POST",
+    body: JSON.stringify({ reset_token: token, password }),
+  });
+}
+
+export async function verifyPasswordResetOtp(email: string, otp: string) {
+  return apiRequest("/api/password-reset/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ email, otp }),
+  });
 }
 
 export async function exchangeFirebaseToken(idToken: string, roleHint: string) {
@@ -121,6 +164,18 @@ export async function createEmployee(name: string, email: string, role: string =
     method: "POST",
     body: JSON.stringify({ name, email, role }),
   });
+}
+
+export async function getAccessRequests() {
+  return apiRequest("/api/access-requests");
+}
+
+export async function approveAccessRequest(id: number) {
+  return apiRequest(`/api/access-requests/${id}/approve`, { method: "POST" });
+}
+
+export async function rejectAccessRequest(id: number) {
+  return apiRequest(`/api/access-requests/${id}/reject`, { method: "POST" });
 }
 
 export async function deactivateEmployee(id: number) {
@@ -226,12 +281,6 @@ export async function getTreasuryHealth() {
 
 export async function getTreasurySummary() {
   return apiRequest("/api/treasury/summary");
-}
-
-export async function syncTreasury() {
-  return apiRequest("/api/treasury/sync", {
-    method: "POST",
-  });
 }
 
 export async function depositTreasury(amount: number) {

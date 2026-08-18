@@ -253,6 +253,44 @@ class User(Base):
     email = Column(String(150), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), default="employee")
+    session_version = Column(Integer, default=0, nullable=False)
 
     def __repr__(self):
         return f"<User {self.email}>"
+
+
+class PasswordResetChallenge(Base):
+    __tablename__ = "password_reset_challenges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(150), nullable=False, index=True)
+    otp_hash = Column(String(64), nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    verified_at = Column(DateTime, nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AccessRequest(Base):
+    __tablename__ = "access_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(150), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    requested_role = Column(String(50), default="employee", nullable=False)
+    status = Column(String(20), default="pending", nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+class PortalHandoff(Base):
+    __tablename__ = "portal_handoffs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    code_hash = Column(String(64), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

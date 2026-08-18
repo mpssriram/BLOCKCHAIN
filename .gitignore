@@ -26,6 +26,7 @@ __pycache__/
 *$py.class
 Backend/venv/
 Backend/.venv/
+streamlit_app/
 
 # Hardhat generated output
 deploy/cache/

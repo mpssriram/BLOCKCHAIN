@@ -17,6 +17,12 @@ from security import SecurityService
 
 app = FastAPI()
 
+def validate_security_settings() -> None:
+    if settings.APP_ENV.lower() != "production":
+        return
+    if settings.SECRET_KEY == "CHANGE-ME-IN-PRODUCTION" or len(settings.SECRET_KEY) < 32:
+        raise RuntimeError("SECRET_KEY must be a unique value of at least 32 characters in production")
+
 # Read allowed CORS origins from settings or the environment; default to all origins.
 def get_allowed_origins() -> list[str]:
     raw_origins = settings.ALLOWED_ORIGINS or os.environ.get("ALLOWED_ORIGINS", "*")
@@ -95,6 +101,19 @@ def ensure_payroll_event_sync_columns() -> None:
         pass
 
 
+def ensure_user_session_version_column() -> None:
+    if not db.is_configured:
+        return
+    try:
+        from sqlalchemy import text
+
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0"))
+            conn.commit()
+    except Exception:
+        pass
+
+
 def seed_demo_data(session: Session) -> None:
     if not session.query(User).filter(User.email == "employee@test.com").first():
         session.add(
@@ -167,6 +186,7 @@ def seed_demo_data(session: Session) -> None:
 
 @app.on_event("startup")
 def startup() -> None:
+    validate_security_settings()
     if not db.is_configured:
         print("Startup complete (database disabled: DATABASE_URL not set)")
         return
@@ -176,6 +196,7 @@ def startup() -> None:
     ensure_employee_is_active_column()
     ensure_transaction_tx_hash_column()
     ensure_payroll_event_sync_columns()
+    ensure_user_session_version_column()
 
     session: Session = db.SessionLocal()
     try:

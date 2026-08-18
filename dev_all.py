@@ -1,5 +1,5 @@
 """
-Start the backend, React entry frontend, Streamlit employer dashboard, and employee portal together.
+Start the backend, React entry frontend, and employee portal together.
 
 Usage:
     python dev_all.py
@@ -15,8 +15,6 @@ ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "Backend"
 FRONTPAGE = ROOT / "frontpage"
 EMPLOYEE = ROOT / "Frontendemployee"
-STREAMLIT = ROOT / "streamlit_app"
-STREAMLIT_VENV = STREAMLIT / "venv"
 
 
 def windows_cmd(command: str) -> list[str]:
@@ -41,12 +39,6 @@ def python_command() -> str:
     return str(BACKEND / "venv" / "bin" / "python")
 
 
-def streamlit_python_command() -> str:
-    if sys.platform == "win32":
-        return str(STREAMLIT_VENV / "Scripts" / "python.exe")
-    return str(STREAMLIT_VENV / "bin" / "python")
-
-
 def npm_install_command() -> str:
     return "npm.cmd install" if sys.platform == "win32" else "npm install"
 
@@ -63,8 +55,9 @@ def run_setup() -> None:
         content_lines = [
             "DATABASE_URL=sqlite:///./blockchain.db",
             "SECRET_KEY=local-dev-secret",
-            "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174",
-            "ENABLE_DEMO_SEED=false",
+            "APP_ENV=development",
+            "ALLOWED_ORIGINS=http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:5173,http://localhost:5174",
+            "ENABLE_DEMO_SEED=true",
         ]
 
         # If a FIREBASE_SERVICE_ACCOUNT_JSON is present in the environment, add it to the .env
@@ -77,14 +70,6 @@ def run_setup() -> None:
 
     print("[setup] Installing backend dependencies...")
     subprocess.run([pip_command(), "install", "-r", "requirements.txt"], cwd=BACKEND, check=True)
-
-    streamlit_python = Path(streamlit_python_command())
-    if not streamlit_python.exists():
-        print("[setup] Creating Streamlit virtual environment...")
-        subprocess.run([sys.executable, "-m", "venv", "venv"], cwd=STREAMLIT, check=True)
-
-    print("[setup] Installing Streamlit dashboard dependencies...")
-    subprocess.run([streamlit_python_command(), "-m", "pip", "install", "-r", "requirements.txt"], cwd=STREAMLIT, check=True)
 
     print("[setup] Installing entry frontend dependencies...")
     subprocess.run(windows_cmd(npm_install_command()), cwd=FRONTPAGE, check=True)
@@ -99,12 +84,8 @@ def start_processes() -> list[subprocess.Popen]:
             [python_command(), "-m", "uvicorn", "main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
             cwd=BACKEND,
         ),
-        subprocess.Popen(
-            [streamlit_python_command(), "-m", "streamlit", "run", "app.py", "--server.address", "127.0.0.1", "--server.port", "8501"],
-            cwd=STREAMLIT,
-        ),
-        subprocess.Popen(windows_cmd(npm_command("dev")), cwd=FRONTPAGE),
-        subprocess.Popen(windows_cmd(npm_command("dev")), cwd=EMPLOYEE),
+        subprocess.Popen(windows_cmd(npm_command("dev -- --host 127.0.0.1 --port 5173 --strictPort")), cwd=FRONTPAGE),
+        subprocess.Popen(windows_cmd(npm_command("dev -- --host 127.0.0.1 --port 5174 --strictPort")), cwd=EMPLOYEE),
     ]
     return processes
 
@@ -126,9 +107,9 @@ def main() -> int:
     print("Core Payroll Dev Launcher")
     print("=" * 60)
     print("Backend:           http://127.0.0.1:8000")
-    print("Entry frontend:    http://localhost:5173")
-    print("Employer dashboard: http://localhost:8501")
-    print("Employee frontend: http://localhost:5174")
+    print("Employer frontend: http://127.0.0.1:5173")
+    print("Employer dashboard: http://127.0.0.1:5173/employer-dashboard/overview")
+    print("Employee frontend: http://127.0.0.1:5174/employee/")
     print("=" * 60)
 
     run_setup()

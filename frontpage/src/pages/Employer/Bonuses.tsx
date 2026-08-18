@@ -89,7 +89,7 @@ export default function Bonuses() {
     <PageShell>
       <PageHeader
         eyebrow="Bonuses"
-        title="Bonus payout preparation"
+        title="Bonuses"
         description="Allocate one-off employee bonuses with clear tax previewing, clean form feedback, and no fake payout history."
       />
 

@@ -1,18 +1,16 @@
-# PayStream Entry Frontend
+# PayStream Employer Frontend
 
-Public landing page and employee portal entry point. Employer dashboard routes redirect to Streamlit.
+This React application provides the public entry page, employer sign-in, password reset, and protected employer dashboard.
 
-Set `VITE_STREAMLIT_DASHBOARD_URL` to the deployed Streamlit dashboard URL. Local development defaults to `http://127.0.0.1:8501`.
+Run it locally from this directory:
 
-Employee portal features include:
-
-- HeLa wallet connectivity
-
-Run locally:
-
-```bash
+```powershell
 npm install
 npm run dev
 ```
 
-For full setup, use the root project README.
+It serves on `http://127.0.0.1:5173` and proxies `/api` calls to the FastAPI backend on port 8000.
+
+Employee sign-in begins here and redirects to the separate React employee portal using a short-lived one-time code. No bearer token is included in the browser URL.
+
+Run `python configure_local.py` from the repository root to create the backend and shared frontend configuration files. For the complete setup and deployment guide, read the repository [README](../README.md).

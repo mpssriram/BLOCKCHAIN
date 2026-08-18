@@ -17,5 +17,10 @@ class Settings(BaseSettings):
     FIREBASE_SERVICE_ACCOUNT_JSON: Optional[str] = None  # JSON string or base64 JSON service account
     FIREBASE_SERVICE_ACCOUNT_PATH: Optional[str] = None  # Path to downloaded service account .json (local dev)
     FIREBASE_PROJECT_ID: Optional[str] = None
+    FRONTEND_URL: str = "http://localhost:5173"
+    SMTP_SERVER: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
 
 settings = Settings()

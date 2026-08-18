@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -12,7 +12,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { TowerLoader } from "../../components/ui/TowerLoader";
-import { isDemoLoginEnabled, loginWithFirebase, loginWithGoogle, redirectToEmployeePortal } from "../../lib/auth";
+import {
+  isDemoLoginEnabled,
+  loginWithPassword,
+  loginWithGoogle,
+  redirectToEmployeePortal,
+  requestPasswordReset,
+} from "../../lib/auth";
+import { isFirebaseConfigured } from "../../lib/firebase";
 
 const trustPoints = [
   "Recorded earnings and payout history",
@@ -21,6 +28,7 @@ const trustPoints = [
 ];
 
 export default function EmployeeLogin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -40,13 +48,13 @@ export default function EmployeeLogin() {
     setLoading(true);
 
     try {
-      await loginWithFirebase(email, password, "employee");
+      await loginWithPassword(email, password, "employee");
       if (rememberMe) {
         localStorage.setItem("employee.portal.lastEmail", email);
       } else {
         localStorage.removeItem("employee.portal.lastEmail");
       }
-      redirectToEmployeePortal();
+      await redirectToEmployeePortal();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -60,9 +68,24 @@ export default function EmployeeLogin() {
 
     try {
       await loginWithGoogle("employee");
-      redirectToEmployeePortal();
+      await redirectToEmployeePortal();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await requestPasswordReset(email);
+      sessionStorage.setItem("passwordResetEmail", email.trim());
+      navigate("/reset-password");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send password-reset instructions.");
     } finally {
       setLoading(false);
     }
@@ -86,8 +109,8 @@ export default function EmployeeLogin() {
     setLoading(true);
 
     try {
-      await loginWithFirebase(demoEmail, demoPassword, "employee");
-      redirectToEmployeePortal();
+      await loginWithPassword(demoEmail, demoPassword, "employee");
+      await redirectToEmployeePortal();
     } catch {
       setError("Demo login failed. Make sure the demo account exists in Firebase and the backend.");
     } finally {
@@ -184,23 +207,26 @@ export default function EmployeeLogin() {
                   ) : null}
 
                   <div className="mt-8 space-y-5">
-                    <button
-                      onClick={handleGoogleLogin}
-                      disabled={loading}
-                      className="group flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white px-5 py-4 text-left text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <div>
-                        <p className="font-semibold">Continue with Google</p>
-                        <p className="text-sm text-slate-500">Single-click access for verified employees</p>
-                      </div>
-                      <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    <div className="flex items-center gap-4 text-xs uppercase tracking-[0.26em] text-slate-500">
-                      <span className="h-px flex-1 bg-white/10" />
-                      Or with email
-                      <span className="h-px flex-1 bg-white/10" />
-                    </div>
+                    {isFirebaseConfigured ? (
+                      <>
+                        <button
+                          onClick={handleGoogleLogin}
+                          disabled={loading}
+                          className="group flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white px-5 py-4 text-left text-slate-950 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <div>
+                            <p className="font-semibold">Continue with Google</p>
+                            <p className="text-sm text-slate-500">Single-click access for verified employees</p>
+                          </div>
+                          <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                        </button>
+                        <div className="flex items-center gap-4 text-xs uppercase tracking-[0.26em] text-slate-500">
+                          <span className="h-px flex-1 bg-white/10" />
+                          Or with email
+                          <span className="h-px flex-1 bg-white/10" />
+                        </div>
+                      </>
+                    ) : null}
 
                     <div className="space-y-4">
                       <label className="block">
@@ -258,6 +284,8 @@ export default function EmployeeLogin() {
 
                       <button
                         type="button"
+                        onClick={handlePasswordReset}
+                        disabled={loading}
                         className="text-left text-cyan-300 transition hover:text-cyan-200 sm:text-right"
                       >
                         Forgot password?
