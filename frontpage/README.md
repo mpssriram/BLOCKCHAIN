@@ -1,11 +1,12 @@
-# PayStream HR Frontend
+# PayStream Entry Frontend
 
-Employer / HR dashboard for:
+Public landing page and employee portal entry point. Employer dashboard routes redirect to Streamlit.
 
-- treasury visibility
-- employee stream management
+Set `VITE_STREAMLIT_DASHBOARD_URL` to the deployed Streamlit dashboard URL. Local development defaults to `http://127.0.0.1:8501`.
+
+Employee portal features include:
+
 - HeLa wallet connectivity
-- start / pause / cancel of on-chain payroll streams
 
 Run locally:
 

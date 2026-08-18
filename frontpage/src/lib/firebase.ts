@@ -3,14 +3,14 @@ import { getAuth } from 'firebase/auth';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyBGFS_wtNjkesm4WxwJAcY-t0jaKyI7JiQ',
-  authDomain: 'blockchain-5bb51.firebaseapp.com',
-  projectId: 'blockchain-5bb51',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   // use the standard appspot.com storage bucket host
-  storageBucket: 'blockchain-5bb51.appspot.com',
-  messagingSenderId: '451205563693',
-  appId: '1:451205563693:web:9611f19f47763b96c3bfa4',
-  measurementId: 'G-JEXNEQ75BD',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);

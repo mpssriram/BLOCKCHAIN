@@ -3,7 +3,8 @@ Run the repository verification checks for PayStream.
 
 Checks:
 - Backend Python compile check (excluding Backend/venv)
-- Employer frontend production build
+- Streamlit employer dashboard compile check
+- Entry frontend production build
 - Employee frontend production build
 
 Usage:
@@ -22,6 +23,7 @@ ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "Backend"
 FRONTPAGE = ROOT / "frontpage"
 EMPLOYEE = ROOT / "Frontendemployee"
+STREAMLIT = ROOT / "streamlit_app"
 BACKEND_VENV = BACKEND / "venv"
 
 
@@ -46,6 +48,21 @@ def run_backend_compile_check() -> None:
         raise SystemExit(1)
 
 
+def run_streamlit_compile_check() -> None:
+    _print_step("Compiling Streamlit dashboard files")
+    failures: list[str] = []
+    for path in STREAMLIT.rglob("*.py"):
+        if "venv" in path.parts:
+            continue
+        try:
+            py_compile.compile(str(path), doraise=True)
+        except py_compile.PyCompileError as exc:
+            failures.append(f"{path}: {exc.msg}")
+    if failures:
+        print("\n".join(failures))
+        raise SystemExit(1)
+
+
 def run_command(command: list[str], cwd: Path, label: str) -> None:
     _print_step(label)
     completed = subprocess.run(command, cwd=cwd)
@@ -63,6 +80,7 @@ def npm_run_build(cwd: Path) -> None:
 
 def main() -> int:
     run_backend_compile_check()
+    run_streamlit_compile_check()
     npm_run_build(FRONTPAGE)
     npm_run_build(EMPLOYEE)
     _print_step("All checks passed")

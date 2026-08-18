@@ -17,7 +17,7 @@ from security import SecurityService
 
 app = FastAPI()
 
-
+# Read allowed CORS origins from settings or the environment; default to all origins.
 def get_allowed_origins() -> list[str]:
     raw_origins = settings.ALLOWED_ORIGINS or os.environ.get("ALLOWED_ORIGINS", "*")
     return [o.strip() for o in raw_origins.split(",")] if raw_origins != "*" else ["*"]
@@ -25,6 +25,7 @@ def get_allowed_origins() -> list[str]:
 
 ALLOWED_ORIGINS = get_allowed_origins()
 ALLOW_CREDENTIALS = ALLOWED_ORIGINS != ["*"]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+# Add the wallet address column for databases created before wallet support existed.
 def ensure_wallet_address_column() -> None:
     if not db.is_configured:
         return
