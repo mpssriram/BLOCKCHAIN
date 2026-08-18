@@ -3,6 +3,19 @@
 const BASE = (import.meta as any).env?.VITE_API_BASE || "";
 const EMPLOYEE_LOGIN_URL = (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || "/employee-login";
 
+export async function exchangePortalHandoff(code: string) {
+  const res = await fetch(`${BASE}/api/portal-handoff/exchange`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || "Portal sign-in has expired.");
+  }
+  return res.json();
+}
+
 function getAuthHeaders() {
   const token = localStorage.getItem("token");
   return {

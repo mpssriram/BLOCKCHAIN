@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
-  ArrowUpRight,
   Landmark,
   LockKeyhole,
   Menu,
@@ -86,14 +85,6 @@ export function Hero() {
                 >
                   Login
                 </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/employer-login')}
-                  className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-50"
-                >
-                  Open Dashboard
-                  <ArrowUpRight className="h-4 w-4" />
-                </button>
               </div>
 
               <button
@@ -127,17 +118,6 @@ export function Hero() {
                   }}
                 >
                   Login
-                </button>
-                <button
-                  type="button"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-950"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    navigate('/employer-login');
-                  }}
-                >
-                  Open Dashboard
-                  <ArrowUpRight className="h-4 w-4" />
                 </button>
               </div>
             ) : null}

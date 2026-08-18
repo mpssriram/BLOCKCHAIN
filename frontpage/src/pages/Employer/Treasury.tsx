@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowUpRight,
   Landmark,
-  RefreshCw,
   ShieldAlert,
   Wallet,
 } from "lucide-react";
@@ -13,7 +12,6 @@ import {
   getBlockchainConfig,
   getTreasury,
   getTreasurySummary,
-  syncTreasury,
   withdrawTreasury,
 } from "../../lib/api";
 import { loginAndConnectContract, logoutWallet, isConnected, getConnectedAddress } from "../../blockchain/wallet";
@@ -72,8 +70,6 @@ function Treasury() {
   const [taxVault, setTaxVault] = useState<string | null>(null);
   const [emergencyLoading, setEmergencyLoading] = useState(false);
   const [web2Loading, setWeb2Loading] = useState(false);
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [syncFeedback, setSyncFeedback] = useState("");
 
   const HELA_EXPLORER_TX = (import.meta as any).env?.VITE_HELA_EXPLORER_TX || "";
   const HELA_EXPLORER_ADDRESS = (import.meta as any).env?.VITE_HELA_EXPLORER_ADDRESS || "";
@@ -165,20 +161,6 @@ function Treasury() {
     }
   }
 
-  async function handleSyncTreasury() {
-    try {
-      setSyncLoading(true);
-      setSyncFeedback("");
-      await syncTreasury();
-      setSyncFeedback("Treasury sync completed.");
-      await loadTreasuryWorkspace();
-    } catch (err) {
-      setSyncFeedback(err instanceof Error ? err.message : "Treasury sync is unavailable.");
-    } finally {
-      setSyncLoading(false);
-    }
-  }
-
   async function handleConnectWallet() {
     if (!contractAddress) {
       alert("Contract not configured.");
@@ -251,23 +233,12 @@ function Treasury() {
           ? "danger"
           : "neutral";
 
-  const syncUnavailable = useMemo(
-    () => syncFeedback.toLowerCase().includes("not implemented") || syncFeedback.toLowerCase().includes("unavailable"),
-    [syncFeedback]
-  );
-
   return (
     <PageShell>
       <PageHeader
         eyebrow="Treasury"
-        title="Treasury operations console"
-        description="Manage backend-recorded treasury balances, wallet-connected contract funding, and clearly distinguish app-side reporting from live chain state."
-        actions={
-          <ActionButton variant="secondary" onClick={handleSyncTreasury} disabled={syncLoading}>
-            <RefreshCw className={`h-4 w-4 ${syncLoading ? "animate-spin" : ""}`} />
-            {syncLoading ? "Syncing..." : "Sync treasury"}
-          </ActionButton>
-        }
+        title="Treasury"
+        description="Manage backend-recorded treasury balances and wallet-connected contract funding."
       />
 
       {loading ? <LoadingState label="Loading treasury console..." /> : null}
@@ -281,12 +252,6 @@ function Treasury() {
             <StatCard label="Treasury health" value={summary?.health?.status || "unknown"} detail={summary?.health?.runway_sec ? `${(summary.health.runway_sec / 86400).toFixed(1)} days runway` : "Runway unavailable"} icon={ShieldAlert} accent="amber" />
             <StatCard label="Recent activity count" value={String(summary?.recent_transactions || 0)} detail="Recent backend-recorded transaction volume in treasury summary." icon={ArrowUpRight} accent="violet" />
           </div>
-
-          {syncFeedback ? (
-            <div className={`rounded-[1.45rem] border px-5 py-4 text-sm leading-7 ${syncUnavailable ? "border-amber-300/18 bg-amber-500/8 text-slate-200" : "border-emerald-300/18 bg-emerald-500/8 text-slate-200"}`}>
-              {syncFeedback}
-            </div>
-          ) : null}
 
           <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
             <SectionCard

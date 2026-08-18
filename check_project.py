@@ -3,7 +3,8 @@ Run the repository verification checks for PayStream.
 
 Checks:
 - Backend Python compile check (excluding Backend/venv)
-- Employer frontend production build
+- Backend authentication regression checks
+- Entry frontend production build
 - Employee frontend production build
 
 Usage:
@@ -61,8 +62,15 @@ def npm_run_build(cwd: Path) -> None:
     run_command(command, cwd, f"Building {cwd.name}")
 
 
+def run_backend_tests() -> None:
+    python = BACKEND / "venv" / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    command = [str(python) if python.exists() else sys.executable, "test_auth_security.py"]
+    run_command(command, BACKEND, "Running backend authentication regression checks")
+
+
 def main() -> int:
     run_backend_compile_check()
+    run_backend_tests()
     npm_run_build(FRONTPAGE)
     npm_run_build(EMPLOYEE)
     _print_step("All checks passed")

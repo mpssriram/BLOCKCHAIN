@@ -618,7 +618,7 @@ class EmailNotifier:
         message["To"] = to
 
         try:
-            with smtplib.SMTP(self.server, self.port) as smtp:
+            with smtplib.SMTP(self.server, self.port, timeout=10) as smtp:
                 smtp.starttls()
                 if self.username:
                     smtp.login(self.username, self.password)

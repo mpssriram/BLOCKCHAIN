@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Eye, Plus, Search, Trash2, UserMinus, Wallet } from "lucide-react";
+import { Check, Eye, Plus, Search, Trash2, UserMinus, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   createEmployee,
   deactivateEmployee,
   deleteEmployee,
+  getAccessRequests,
   getEmployees,
+  approveAccessRequest,
+  rejectAccessRequest,
 } from "../../lib/api";
 import {
   ActionButton,
@@ -31,10 +34,18 @@ type EmployeeRecord = {
   custom_tax_rate?: number | null;
 };
 
+type AccessRequest = {
+  id: number;
+  email: string;
+  requested_role: string;
+  created_at: string;
+};
+
 function Employees() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -43,6 +54,7 @@ function Employees() {
   const [addRole, setAddRole] = useState("employee");
   const [addLoading, setAddLoading] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+  const [accessActionId, setAccessActionId] = useState<number | null>(null);
 
   useEffect(() => {
     loadEmployees();
@@ -52,8 +64,9 @@ function Employees() {
     try {
       setLoading(true);
       setError("");
-      const data = await getEmployees();
+      const [data, pendingRequests] = await Promise.all([getEmployees(), getAccessRequests()]);
       setEmployees(Array.isArray(data) ? data : []);
+      setAccessRequests(Array.isArray(pendingRequests) ? pendingRequests : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load employees.");
     } finally {
@@ -112,12 +125,27 @@ function Employees() {
     }
   }
 
+  async function handleAccessRequest(requestId: number, action: "approve" | "reject") {
+    try {
+      setAccessActionId(requestId);
+      if (action === "approve") {
+        await approveAccessRequest(requestId);
+      } else {
+        await rejectAccessRequest(requestId);
+      }
+      await loadEmployees();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Unable to update the access request.");
+    } finally {
+      setAccessActionId(null);
+    }
+  }
+
   return (
     <PageShell>
       <PageHeader
         eyebrow="Employees"
-        title="HR and payroll operations"
-        description="Review employee status, wallet readiness, stream activity, and payroll-specific actions from one dense but readable control surface."
+        title="Employees"
         actions={
           <ActionButton variant="primary" onClick={() => setShowAddModal(true)}>
             <Plus className="h-4 w-4" />
@@ -126,10 +154,41 @@ function Employees() {
         }
       />
 
+      {accessRequests.length > 0 ? (
+        <SectionCard title={`Pending access (${accessRequests.length})`}>
+          <div className="divide-y divide-white/8 rounded-lg border border-white/10 bg-[#08111d]">
+            {accessRequests.map((request) => (
+              <div key={request.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium text-white">{request.email}</p>
+                  <p className="text-xs text-slate-500">Employee access request</p>
+                </div>
+                <div className="flex gap-2">
+                  <ActionButton
+                    variant="primary"
+                    disabled={accessActionId === request.id}
+                    onClick={() => handleAccessRequest(request.id, "approve")}
+                  >
+                    <Check className="h-4 w-4" />
+                    Approve
+                  </ActionButton>
+                  <ActionButton
+                    variant="danger"
+                    disabled={accessActionId === request.id}
+                    onClick={() => handleAccessRequest(request.id, "reject")}
+                  >
+                    <X className="h-4 w-4" />
+                    Reject
+                  </ActionButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      ) : null}
+
       <SectionCard
-        title="Employee registry"
-        eyebrow="Search and operate"
-        description="Filter employee records, open payroll details, and trigger supported lifecycle actions without changing backend behavior."
+        title="All employees"
       >
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full max-w-xl">

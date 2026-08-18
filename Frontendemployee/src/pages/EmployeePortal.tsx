@@ -20,7 +20,7 @@ import { TransactionHistory } from "../components/transactions/TransactionHistor
 import { StatCard } from "../components/ui/StatCard";
 import { TowerLoader } from "../components/ui/TowerLoader";
 import { Sidebar } from "../layouts/employee/Sidebar";
-import { getBlockchainConfig, getMyProfile, getMyTransactions, recordMyWithdrawal, updateMyWallet } from "../lib/api";
+import { exchangePortalHandoff, getBlockchainConfig, getMyProfile, getMyTransactions, recordMyWithdrawal, updateMyWallet } from "../lib/api";
 
 type ProfileResponse = {
   email?: string;
@@ -74,26 +74,33 @@ function EmployeePortal() {
   }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenFromUrl = params.get("token");
+    const loadPortal = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const handoffCode = params.get("handoff");
+      if (handoffCode) {
+        try {
+          const session = await exchangePortalHandoff(handoffCode);
+          localStorage.setItem("token", session.access_token);
+          params.delete("handoff");
+          const query = params.toString();
+          window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+        } catch {
+          localStorage.removeItem("token");
+        }
+      }
 
-    if (tokenFromUrl) {
-      localStorage.setItem("token", tokenFromUrl);
-      params.delete("token");
-      const query = params.toString();
-      const cleanUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
-      window.history.replaceState({}, "", cleanUrl);
-    }
+      if (!localStorage.getItem("token")) {
+        const loginUrl = (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || "http://localhost:5173/employee-login";
+        window.location.href = loginUrl;
+        return;
+      }
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      const loginUrl = (import.meta as any).env?.VITE_EMPLOYEE_LOGIN_URL || "http://localhost:5173/employee-login";
-      window.location.href = loginUrl;
-      return;
-    }
-
-    Promise.all([getMyProfile(), getMyTransactions(), getBlockchainConfig()])
-      .then(([profileData, transactionData, config]: [ProfileResponse, TransactionRecord[], any]) => {
+      try {
+        const [profileData, transactionData, config]: [ProfileResponse, TransactionRecord[], any] = await Promise.all([
+          getMyProfile(),
+          getMyTransactions(),
+          getBlockchainConfig(),
+        ]);
         setProfile(profileData);
         setTransactions(Array.isArray(transactionData) ? transactionData : []);
         const address = config?.contract_address || null;
@@ -110,9 +117,14 @@ function EmployeePortal() {
         } else if (profileData?.employee?.wallet_address) {
           setWalletAddress(profileData.employee.wallet_address);
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      } catch {
+        // The API client handles expired sessions by returning to the employee login page.
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadPortal();
   }, []);
 
   useEffect(() => {

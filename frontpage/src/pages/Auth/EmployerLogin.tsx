@@ -15,7 +15,13 @@ import {
   Wallet,
 } from "lucide-react";
 import { TowerLoader } from "../../components/ui/TowerLoader";
-import { isDemoLoginEnabled, loginWithFirebase, loginWithGoogle } from "../../lib/auth";
+import {
+  isDemoLoginEnabled,
+  loginWithPassword,
+  loginWithGoogle,
+  requestPasswordReset,
+} from "../../lib/auth";
+import { isFirebaseConfigured } from "../../lib/firebase";
 
 const highlights = [
   {
@@ -67,7 +73,7 @@ export default function EmployerLogin() {
     setError("");
     setLoading(true);
     try {
-      await loginWithFirebase(email, password, "employer");
+      await loginWithPassword(email, password, "employer");
       navigate("/employer-dashboard/overview");
     } catch (err) {
       setError(
@@ -93,6 +99,21 @@ export default function EmployerLogin() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await requestPasswordReset(email);
+      sessionStorage.setItem("passwordResetEmail", email.trim());
+      navigate("/reset-password");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send password-reset instructions.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDemoLogin = async () => {
     if (!isDemoLoginEnabled()) {
       setError("Demo login is disabled.");
@@ -109,7 +130,7 @@ export default function EmployerLogin() {
     setError("");
     setLoading(true);
     try {
-      await loginWithFirebase(demoEmail, demoPassword, "employer");
+      await loginWithPassword(demoEmail, demoPassword, "employer");
       navigate("/employer-dashboard/overview");
     } catch {
       setError("Demo login failed. Ensure the demo account exists in Firebase and the backend.");
@@ -217,30 +238,33 @@ export default function EmployerLogin() {
               )}
 
               <div className="space-y-4">
-                <button
-                  type="button"
-                  onClick={handleGoogleLogin}
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold text-slate-800 shadow-sm">
-                    G
-                  </span>
-                  Continue with Google
-                </button>
-
-                <motion.div
-                  className="flex items-center gap-3"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.25 }}
-                >
-                  <span className="h-px flex-1 bg-white/10" />
-                  <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
-                    or email
-                  </span>
-                  <span className="h-px flex-1 bg-white/10" />
-                </motion.div>
+                {isFirebaseConfigured ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={loading}
+                      className="flex w-full items-center justify-center gap-3 rounded-2xl border border-white/12 bg-white/[0.06] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold text-slate-800 shadow-sm">
+                        G
+                      </span>
+                      Continue with Google
+                    </button>
+                    <motion.div
+                      className="flex items-center gap-3"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.25 }}
+                    >
+                      <span className="h-px flex-1 bg-white/10" />
+                      <span className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">
+                        or email
+                      </span>
+                      <span className="h-px flex-1 bg-white/10" />
+                    </motion.div>
+                  </>
+                ) : null}
 
                 <div className="space-y-4">
                   <label className="block">
@@ -285,6 +309,17 @@ export default function EmployerLogin() {
                       </button>
                     </motion.div>
                   </label>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handlePasswordReset}
+                      disabled={loading}
+                      className="text-sm font-medium text-cyan-300 transition hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                 </div>
 
                 <motion.button

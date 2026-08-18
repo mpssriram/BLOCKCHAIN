@@ -159,13 +159,31 @@ class TaxSlabResponse(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
-    role: str
+    password: str = Field(min_length=8, max_length=128)
+    role: Literal["employer", "employee"]
 
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class PortalHandoffExchange(BaseModel):
+    code: str = Field(min_length=32, max_length=256)
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    reset_token: str
+    password: str = Field(min_length=8, max_length=128)
+
+
+class PasswordResetOtpVerify(BaseModel):
+    email: EmailStr
+    otp: str = Field(pattern=r"^\d{6}$")
 
 
 class FirebaseTokenExchange(BaseModel):

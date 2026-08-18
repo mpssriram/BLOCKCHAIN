@@ -1,5 +1,5 @@
 """
-Start the backend and both frontend dev servers together.
+Start the backend, React entry frontend, and employee portal together.
 
 Usage:
     python dev_all.py
@@ -55,8 +55,9 @@ def run_setup() -> None:
         content_lines = [
             "DATABASE_URL=sqlite:///./blockchain.db",
             "SECRET_KEY=local-dev-secret",
-            "ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174",
-            "ENABLE_DEMO_SEED=false",
+            "APP_ENV=development",
+            "ALLOWED_ORIGINS=http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:5173,http://localhost:5174",
+            "ENABLE_DEMO_SEED=true",
         ]
 
         # If a FIREBASE_SERVICE_ACCOUNT_JSON is present in the environment, add it to the .env
@@ -70,7 +71,7 @@ def run_setup() -> None:
     print("[setup] Installing backend dependencies...")
     subprocess.run([pip_command(), "install", "-r", "requirements.txt"], cwd=BACKEND, check=True)
 
-    print("[setup] Installing employer frontend dependencies...")
+    print("[setup] Installing entry frontend dependencies...")
     subprocess.run(windows_cmd(npm_install_command()), cwd=FRONTPAGE, check=True)
 
     print("[setup] Installing employee frontend dependencies...")
@@ -83,8 +84,8 @@ def start_processes() -> list[subprocess.Popen]:
             [python_command(), "-m", "uvicorn", "main:app", "--reload", "--host", "127.0.0.1", "--port", "8000"],
             cwd=BACKEND,
         ),
-        subprocess.Popen(windows_cmd(npm_command("dev")), cwd=FRONTPAGE),
-        subprocess.Popen(windows_cmd(npm_command("dev")), cwd=EMPLOYEE),
+        subprocess.Popen(windows_cmd(npm_command("dev -- --host 127.0.0.1 --port 5173 --strictPort")), cwd=FRONTPAGE),
+        subprocess.Popen(windows_cmd(npm_command("dev -- --host 127.0.0.1 --port 5174 --strictPort")), cwd=EMPLOYEE),
     ]
     return processes
 
@@ -106,8 +107,9 @@ def main() -> int:
     print("Core Payroll Dev Launcher")
     print("=" * 60)
     print("Backend:           http://127.0.0.1:8000")
-    print("Employer frontend: http://localhost:5173")
-    print("Employee frontend: http://localhost:5174")
+    print("Employer frontend: http://127.0.0.1:5173")
+    print("Employer dashboard: http://127.0.0.1:5173/employer-dashboard/overview")
+    print("Employee frontend: http://127.0.0.1:5174/employee/")
     print("=" * 60)
 
     run_setup()

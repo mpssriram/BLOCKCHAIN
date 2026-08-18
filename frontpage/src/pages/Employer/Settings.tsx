@@ -206,7 +206,7 @@ export default function Settings() {
     <PageShell>
       <PageHeader
         eyebrow="Settings"
-        title="Operational configuration"
+        title="Settings"
         description="Manage company tax defaults, progressive slabs, employee-specific tax overrides, and contract role visibility without changing backend behavior."
       />
 

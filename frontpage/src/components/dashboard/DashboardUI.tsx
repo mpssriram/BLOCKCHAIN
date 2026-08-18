@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { AlertCircle, ArrowRight, LoaderCircle, LucideIcon } from "lucide-react";
 
 export function PageShell({ children }: { children: ReactNode }) {
-  return <div className="space-y-8">{children}</div>;
+  return <div className="space-y-5">{children}</div>;
 }
 
 export function PageHeader({
@@ -18,18 +18,17 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="max-w-3xl"
+        className="min-w-0"
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300/80">{eyebrow}</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-white sm:text-5xl">{title}</h1>
-        {description ? <p className="mt-4 text-base leading-8 text-slate-300">{description}</p> : null}
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-cyan-300/80">{eyebrow}</p>
+        <h1 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">{title}</h1>
       </motion.div>
-      {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -55,20 +54,18 @@ export function SectionCard({
     tone === "dark"
       ? "border-white/10 bg-white/[0.04] text-white"
       : "border-slate-200 bg-white text-slate-950 shadow-[0_18px_60px_rgba(15,23,42,0.08)]";
-  const copy = tone === "dark" ? "text-slate-300" : "text-slate-600";
   const eyebrowColor = tone === "dark" ? "text-cyan-300/80" : "text-cyan-600";
 
   return (
-    <section className={`rounded-[1.75rem] border p-6 md:p-7 ${shell} ${className}`}>
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <section className={`rounded-xl border p-5 ${shell} ${className}`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-2xl">
-          {eyebrow ? <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${eyebrowColor}`}>{eyebrow}</p> : null}
-          <h2 className="mt-2 text-2xl font-semibold">{title}</h2>
-          {description ? <p className={`mt-3 text-sm leading-7 ${copy}`}>{description}</p> : null}
+          {eyebrow ? <p className={`text-xs font-medium uppercase tracking-[0.16em] ${eyebrowColor}`}>{eyebrow}</p> : null}
+          <h2 className="mt-1 text-lg font-semibold">{title}</h2>
         </div>
         {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
       </div>
-      <div className="mt-6">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
@@ -95,13 +92,13 @@ export function StatCard({
   } satisfies Record<string, string>;
 
   return (
-    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-5">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accentMap[accent]}`}>
-        <Icon className="h-5 w-5" />
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4">
+      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${accentMap[accent]}`}>
+        <Icon className="h-4 w-4" />
       </div>
-      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
-      {detail ? <p className="mt-3 text-sm leading-6 text-slate-300">{detail}</p> : null}
+      <p className="mt-3 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-white">{value}</p>
+      {detail ? <p className="mt-1 text-xs text-slate-400">{detail}</p> : null}
     </div>
   );
 }

@@ -13,10 +13,19 @@ const firebaseConfig = {
   measurementId: 'G-JEXNEQ75BD',
 };
 
-export const firebaseApp = initializeApp(firebaseConfig);
-export const firebaseAuth = getAuth(firebaseApp);
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey &&
+  firebaseConfig.authDomain &&
+  firebaseConfig.projectId &&
+  firebaseConfig.appId
+);
+
+export const firebaseApp = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 
 // Analytics is optional (may not be available in non-browser environments)
-export const firebaseAnalyticsPromise = isSupported()
-  .then((supported) => (supported ? getAnalytics(firebaseApp) : null))
-  .catch(() => null);
+export const firebaseAnalyticsPromise = firebaseApp
+  ? isSupported()
+    .then((supported) => (supported ? getAnalytics(firebaseApp) : null))
+    .catch(() => null)
+  : Promise.resolve(null);
